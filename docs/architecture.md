@@ -25,7 +25,7 @@ The picture and the reasons. Exact file formats, HTTP routes and parsing rules l
 - **Folder.** Plain Markdown, one file per piece, plus a hidden `.ownwords/` sidecar per piece. The Markdown holds what you would keep. The sidecar holds what you would throw away: drafts, marks, history.
 - **Agent.** Does all the writing, from chat. It edits the Markdown and appends version groups to `versions.json`. To pick a version it calls the same accept route as the page, so there is one code path.
 - **Server** (`server.js`, `lib/md.js`). Node built-ins only. Serves the page and a small JSON API on `127.0.0.1`. It notices file changes by `stat` on each request and every second, snapshots the Markdown after each change, and does the few writes that touch several files (accept, restore). It writes `OWNWORDS.md` on start and stops itself when nobody uses it.
-- **Page** (`public/`). Plain browser scripts, no build, no framework. Polls the server every second with an etag, so an agent's edit shows up within about a second. Shows versions in place, word diffs, marks and the timeline. Writes only `ui.json`, through the server.
+- **Page** (`public/`). Plain browser scripts, no build, no framework. Polls the server every second with an etag, so an agent's edit shows up within about a second. Shows versions in place, word diffs, marks and the timeline. Writes only `ui.json`, through the server. Saves go one at a time (the latest wins), and typing in a note box saves without redrawing the page.
 - **`OWNWORDS.md`.** Generated from `templates/OWNWORDS.md` with the real folder and app paths filled in. An agent that can only see the folder still has every rule.
 - **Skill pointer** (`skill/SKILL.md`). A few lines copied into the agent's skills folder: "read `<folder>/OWNWORDS.md`". It holds no paths, so it never needs editing.
 - **Launcher** (`launcher/`, macOS). A tiny AppleScript app built on the user's Mac and placed in the folder. It runs `open-ownwords.sh`, which finds Node, starts the server for the folder the app sits in, waits for `/api/info`, and opens a Chrome, Edge or Brave app window (else the default browser).
@@ -63,7 +63,7 @@ More reasons and rejected options: [decisions.md](decisions.md).
 | `lib/md.js` | Pure functions: paragraph parsing, group matching, slugs, history notes. |
 | `public/index.html`, `app.js`, `style.css` | Page shell, logic and styles. |
 | `public/diff.js`, `diff.css` | Word diff and compare views. |
-| `public/feedback.js`, `feedback.css` | Like and dislike marks. |
+| `public/feedback.js`, `feedback.css` | Like, dislike and neutral note marks, and the note box. |
 | `public/timeline.js` | Timeline panel. |
 | `public/manifest.webmanifest`, `public/icons/` | Install-as-app metadata and icons. |
 | `templates/OWNWORDS.md` | Source of the folder's `OWNWORDS.md`. |

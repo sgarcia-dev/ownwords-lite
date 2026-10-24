@@ -56,3 +56,18 @@ Newest last. Each entry: what was decided, why, and what was rejected. A later d
 **Why.** As of 2026-10-23 it needed a browser flag and about 240 more lines, and the agents in use did not support it natively. The file approach already works with any agent. These facts may be stale: re-check before relying on them.
 
 **Rejected.** WebMCP now (flag-only, no gain yet). A hosted remote MCP server (days of work, accounts and hosting; only worth it if people need the Claude or ChatGPT websites). Revisit when WebMCP ships without flags and agents support it natively.
+
+## D7 Marks are range + score + note; neutral notes (2026-10-24)
+
+**Decision.** A mark is a range, an optional score (2, 1, 0, -1, -2) and a note.
+
+- Score 0 is a neutral note. It needs a non-empty note, and the mark is created at the first typed character.
+- A vote edits the mark in place and never drops its note. Clearing a thumb keeps a mark that has a note. The mark goes only when score is 0 and the note is empty, or with the note box's remove button.
+- The note box is a 3-row textarea that saves as you type.
+- ui.json POSTs go one at a time, latest wins.
+- Agents read the note on every mark.
+- Notes go up to 2000 characters; 280 cut off real notes.
+
+**Why.** Sergei lost notes on repeated 👍 and on 👍 to 👎, and could not see saved notes. Note and vote are two fields on one mark, so neither may change the other.
+
+**Rejected.** Creating a neutral mark on click (an empty neutral is lost by `clean()` and the next save). Storing notes in a separate list (two stores to keep in step). 💬 as a vote button (it became a like). Saving only on Enter. Rendering the page on every keystroke. Migrating old files (none can contain score 0).

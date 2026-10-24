@@ -29,7 +29,7 @@ Read the files. Do not call `GET /api/doc` to read a piece (large).
 1. Read `ui.json` first.
    - `selection`: what "this" means. `text` is the exact quote. `scope` "mark" means one of their marks (`mark` is its id).
    - `picks`: which version each group shows (0 = current text, n = `options[n-1]`; the badge number minus one).
-   - `feedback`: marks. `score` 2 really like, 1 like, -1 dislike, -2 really dislike. `quote` is the marked text (null = whole version). `note` is optional.
+   - `feedback`: marks. `score` 2 really like, 1 like, 0 neutral, -1 dislike, -2 really dislike. `0` is a note with no thumb: a comment, not a like or dislike. `quote` is the marked text (null = whole version). `note` is optional on a thumb and always present on a neutral mark. The note is independent of the thumb: a liked or disliked mark can carry a note too.
 2. Quote what you act on in one line.
 3. Make the change (rules below). Add one log entry to `versions.json`.
 4. Reply in one or two lines. The page is where they read.
@@ -38,7 +38,7 @@ Read the files. Do not call `GET /api/doc` to read a piece (large).
 - **Text change:** replace the exact paragraph text in `<id>.md` with a targeted edit. Never rewrite the whole file.
 - **New versions:** add a group: `{ "id": "g<next>", "original": "<exact current text, blank line between paragraphs>", "options": [{ "text", "note" }] }`. `note` is 1 to 3 words. Ids are never reused. A sentence selection gets options that are the whole paragraph with only that sentence changed.
 - **More versions:** append to `options`. Never reorder or delete: marks point at them by number.
-- **Use the feedback:** read all marks for the group first. Keep what is liked (especially 2), drop what is disliked (especially -2), follow notes. Say in one line what you kept and dropped.
+- **Use the feedback:** read all marks for the group first, and read the note on every mark, neutral ones included. Keep what is liked (especially 2), drop what is disliked (especially -2). Follow notes even when the score is 0: a neutral note is a comment or instruction about that quote. Say in one line what you kept and dropped.
 - **Picking a version** ("take 3", "keep mine"): do not edit by hand. Call
   `curl -s -X POST http://127.0.0.1:4646/api/accept/<id> -H 'content-type: application/json' -d '{"group":"g1","pick":2}'`
   `pick` = badge number minus one; `0` drops the drafts and keeps the text. It updates the file, closes the group, logs it, and for a title renames the file (the reply has the new id). Never rename files yourself.

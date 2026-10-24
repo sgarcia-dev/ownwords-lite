@@ -1,11 +1,11 @@
-/* Ownwords Lite: like and dislike marks. Works in the browser (window.OW) and under Node (pure parts). */
+/* Ownwords Lite: like, dislike and neutral note marks. Works in the browser (window.OW) and under Node (pure parts). */
 (function (root) {
   'use strict';
 
   var OW = root.OW = root.OW || {};
   var HAS_DOM = typeof document !== 'undefined';
   var BEFORE_LEN = 24;
-  var NOTE_MAX = 280;
+  var NOTE_MAX = 2000;
 
   var marks = [];          // saved marks, see section 3.5 of the plan
   var texts = {};          // "block\0version" -> shown text, filled by paintBlock
@@ -13,7 +13,7 @@
   var host = null;
   var barEl = null;
   var docEl = null;
-  var why = null;          // { set, anchor, el, input, orig }
+  var why = null;          // the note box: { ids, pending, anchor, el, ta, hint, rm, last, dirty }
 
   // ---------------------------------------------------------------- finding a quote again
 
@@ -143,8 +143,10 @@
     if (typeof m.id !== 'string' || !m.id) return null;
     if (typeof m.block !== 'string' || !m.block) return null;
     if (!Number.isInteger(m.version) || m.version < 0) return null;
-    if (!Number.isInteger(m.score) || m.score === 0 || Math.abs(m.score) > 2) return null;
+    if (!Number.isInteger(m.score) || Math.abs(m.score) > 2) return null;
     if (m.quote !== null && (typeof m.quote !== 'string' || !m.quote)) return null;
+    var note = typeof m.note === 'string' ? m.note.slice(0, NOTE_MAX) : '';
+    if (m.score === 0 && !note.trim()) return null;   // a neutral mark exists only with a note
     return {
       id: m.id,
       block: m.block,
@@ -153,14 +155,21 @@
       before: typeof m.before === 'string' ? m.before : '',
       start: Number.isInteger(m.start) ? m.start : 0,
       score: m.score,
-      note: typeof m.note === 'string' ? m.note.slice(0, NOTE_MAX) : '',
+      note: note,
       set: typeof m.set === 'string' && m.set ? m.set : m.id,
       at: typeof m.at === 'string' ? m.at : ''
     };
   }
 
+  function dropWhy() {
+    var w = why;
+    why = null;
+    if (w && w.el && w.el.parentNode) w.el.parentNode.removeChild(w.el);
+  }
+
   function load(arr) {
     var seen = {};
+    if (why) dropWhy();
     marks = [];
     texts = {};
     ranges = {};
@@ -209,21 +218,55 @@
     return null;
   }
 
-  // True when a span mark in the same block and version crosses this target,
+  function byId(id) {
+    for (var i = 0; i < marks.length; i++) if (marks[i].id === id) return marks[i];
+    return null;
+  }
+
+  // The target a mark sits on, or null if its quote is lost.
+  function targetOf(m) {
+    if (m.quote === null) return { block: m.block, version: m.version, whole: true };
+    var r = rangeFor(m);
+    return r ? { block: m.block, version: m.version, start: r.start, end: r.end } : null;
+  }
+
+  function buildMark(t, score, note, set, at) {
+    var m = { id: 'f' + rid(8), block: t.block, version: t.version, quote: null, before: '', start: 0, score: score, note: note, set: set, at: at };
+    if (!t.whole) {
+      var text = texts[textKey(t.block, t.version)];
+      if (typeof text !== 'string' || !(t.end > t.start)) return null;
+      m.quote = text.slice(t.start, t.end);
+      if (!m.quote) return null;
+      m.before = text.slice(Math.max(0, t.start - BEFORE_LEN), t.start);
+      m.start = t.start;
+    }
+    return m;
+  }
+
+  function removeMarks(ids) {
+    ids.forEach(function (id) {
+      var m = byId(id);
+      if (m) marks.splice(marks.indexOf(m), 1);
+    });
+  }
+
+  // The first span mark in the same block and version that crosses this target,
   // unless it sits on exactly the same range (that one cycles). Whole-version
   // marks never count.
-  function overlaps(t) {
-    if (!t || t.whole) return false;
+  function overlapMark(t) {
+    if (!t || t.whole) return null;
     for (var i = 0; i < marks.length; i++) {
       var m = marks[i];
       if (m.block !== t.block || m.version !== t.version || m.quote === null) continue;
       var r = rangeFor(m);
       if (!r) continue;
       if (r.start === t.start && r.end === t.end) continue;
-      if (r.start < t.end && t.start < r.end) return true;
+      if (r.start < t.end && t.start < r.end) return m;
     }
-    return false;
+    return null;
   }
+
+  function overlaps(t) { return !!overlapMark(t); }
 
   function anyOverlap(targets) {
     if (!Array.isArray(targets)) return false;
@@ -318,7 +361,8 @@
           var a = Math.max(g.start, s0), b = Math.min(g.end, s1);
           if (a > at) frag.appendChild(document.createTextNode(val.slice(at - s0, a - s0)));
           var el = document.createElement('mark');
-          el.className = 'fb ' + (g.m.score > 0 ? 'fb-like' : 'fb-dis') + ' fb-s' + Math.abs(g.m.score);
+          var s = g.m.score;
+          el.className = 'fb ' + (s > 0 ? 'fb-like' : s < 0 ? 'fb-dis' : 'fb-neutral') + ' fb-s' + Math.abs(s);
           el.dataset.fb = g.m.id;
           if (g.m.note) el.title = g.m.note;
           el.textContent = val.slice(a - s0, b - s0);
@@ -342,32 +386,22 @@
 
   function vote(targets, kind, anchor) {
     if (anyOverlap(targets)) return;
-    closeWhyInner(true, false);
+    closeWhy();                                   // keeps the typed note
     var next = nextScore(sharedScore(targets), kind);
-    var set = rid(6);
-    var at = new Date().toISOString();
-    var made = false;
+    var set = rid(6), at = new Date().toISOString(), ids = [];
     targets.forEach(function (t) {
       var old = markFor(t);
-      var note = '';
-      if (old) {
-        marks.splice(marks.indexOf(old), 1);
-        if (next !== 0 && old.score * next > 0) note = old.note;
+      if (old) {                                  // same object: id and note stay
+        if (next === 0 && !old.note) { marks.splice(marks.indexOf(old), 1); return; }
+        old.score = next; old.set = set; old.at = at;   // note with score 0 = neutral, kept
+        ids.push(old.id);
+        return;
       }
       if (next === 0) return;
-      var text = texts[textKey(t.block, t.version)];
-      var m = { id: 'f' + rid(8), block: t.block, version: t.version, quote: null, before: '', start: 0, score: next, note: note, set: set, at: at };
-      if (!t.whole) {
-        if (typeof text !== 'string' || !(t.end > t.start)) return;
-        m.quote = text.slice(t.start, t.end);
-        m.before = text.slice(Math.max(0, t.start - BEFORE_LEN), t.start);
-        m.start = t.start;
-        if (!m.quote) return;
-      }
-      marks.push(m);
-      made = true;
+      var m = buildMark(t, next, '', set, at);
+      if (m) { marks.push(m); ids.push(m.id); }
     });
-    if (next !== 0 && made) openWhy(set, anchor);
+    if (ids.length) openWhy({ ids: ids, anchor: anchor });
     if (host && host.changed) host.changed();
     if (why) { reposition(); focusWhy(); }
   }
@@ -381,9 +415,54 @@
     vote(targets, kind, { type: 'bar' });
   }
 
+  // 💬 from the bar or the badge row: open the note of the marks it covers, or wait for a first character.
+  function openNote(targets, anchor) {
+    closeWhy();
+    var ids = [];
+    targets.forEach(function (t) {
+      var m = markFor(t) || overlapMark(t);       // stays enabled over an overlap: open the covering mark
+      if (m && ids.indexOf(m.id) < 0) ids.push(m.id);
+    });
+    openWhy({ ids: ids, pending: ids.length ? null : targets, anchor: anchor });
+    reposition();
+    focusWhy();
+  }
+
+  function noteSelection() {
+    if (!host) return;
+    var sel = host.selection();
+    if (!sel || !Array.isArray(sel.targets)) return;
+    var t = sel.targets.filter(function (x) { return x && x.end > x.start; });
+    if (t.length) openNote(t, { type: 'bar' });
+  }
+
+  function pieceIndex(id, el) {
+    if (!HAS_DOM || !docEl || !el) return 0;
+    var ps = Array.prototype.filter.call(docEl.querySelectorAll('mark.fb'), function (e) { return e.dataset.fb === id; });
+    var i = ps.indexOf(el);
+    return i < 0 ? 0 : i;
+  }
+
+  // A click on a painted mark (app.js): show its note.
+  function openMark(id, pieceEl) {
+    if (!byId(id)) return;
+    closeWhy();
+    openWhy({ ids: [id], anchor: { type: 'mark', id: id, idx: pieceIndex(id, pieceEl) } });
+    reposition();
+    focusWhy();
+  }
+
+  function setNoteBtn(b, has) {
+    b.classList.toggle('on', has);
+    b.setAttribute('aria-pressed', has ? 'true' : 'false');
+    b.title = has ? 'Edit note' : 'Add note';
+  }
+
   function versionButtons(blockId, pick) {
     var wrap = document.createElement('span');
     wrap.className = 'fb-ver';
+    wrap.dataset.block = blockId;
+    wrap.dataset.version = String(pick);
     var target = { block: blockId, version: pick, whole: true };
     var m = markFor(target);
     var score = m ? m.score : 0;
@@ -402,6 +481,19 @@
       });
       wrap.appendChild(b);
     });
+    var nb = document.createElement('button');
+    nb.type = 'button';
+    nb.className = 'fb-btn';
+    nb.dataset.note = '';
+    nb.textContent = '💬';
+    nb.setAttribute('aria-label', 'Note on this version');
+    setNoteBtn(nb, !!(m && m.note));              // lit when the whole-version mark has a note
+    nb.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      openNote([target], { type: 'ver', block: blockId });
+    });
+    wrap.appendChild(nb);
     return wrap;
   }
 
@@ -419,44 +511,121 @@
         b.disabled = false;
       }
     });
+    var nb = barEl.querySelector('[data-note]');
+    if (nb) {
+      var has = !!sel && Array.isArray(sel.targets) && sel.targets.some(function (t) {
+        var m = markFor(t) || overlapMark(t);
+        return m && m.note;
+      });
+      setNoteBtn(nb, has);
+    }
   }
 
-  // ---------------------------------------------------------------- the Why field
+  // ---------------------------------------------------------------- the note box
 
-  function openWhy(set, anchor) {
+  function setHint(s) { if (why && why.hint) why.hint.textContent = s; }
+
+  function openWhy(o) {
+    var first = o.ids && o.ids.length ? byId(o.ids[0]) : null;
+    why = { ids: o.ids || [], pending: o.pending || null, anchor: o.anchor, el: null, ta: null, hint: null, rm: null, dirty: false, last: first ? first.note.trim() : '' };
     if (!HAS_DOM) return;
-    var first = marks.filter(function (m) { return m.set === set; })[0];
     var el = document.createElement('div');
     el.id = 'fbwhy';
-    var input = document.createElement('input');
-    input.type = 'text';
-    input.maxLength = NOTE_MAX;
-    input.placeholder = 'Why? (optional)';
-    input.setAttribute('aria-label', 'Why? Optional note');
-    input.value = first ? first.note : '';
+    var ta = document.createElement('textarea');
+    ta.rows = 3;
+    ta.maxLength = NOTE_MAX;
+    ta.placeholder = 'Note (optional)';
+    ta.setAttribute('aria-label', 'Note');
+    ta.value = first ? first.note : '';
+    var row = document.createElement('div');
+    row.className = 'fb-row';
     var hint = document.createElement('span');
     hint.className = 'fb-hint';
-    hint.textContent = 'Enter to save';
-    el.appendChild(input);
-    el.appendChild(hint);
-    input.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') {
+    var rm = document.createElement('button');
+    rm.type = 'button';
+    rm.className = 'fb-remove';
+    rm.textContent = '× Remove';
+    rm.title = 'Remove this mark';
+    rm.hidden = !why.ids.length;
+    row.appendChild(hint);
+    row.appendChild(rm);
+    el.appendChild(ta);
+    el.appendChild(row);
+    ta.addEventListener('input', function () { if (why && why.ta === ta) applyText(ta.value); });
+    ta.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        closeWhyInner(true, false);
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        closeWhyInner(false, false);
+        closeWhy();
       }
     });
+    ta.addEventListener('blur', function () { if (why && why.ta === ta) applyText(ta.value); });
+    rm.addEventListener('click', function (e) { e.preventDefault(); removeWhy(); });
     document.body.appendChild(el);
-    why = { set: set, anchor: anchor, el: el, input: input, orig: input.value.trim() };
+    why.el = el; why.ta = ta; why.hint = hint; why.rm = rm;
+  }
+
+  // The one place a note changes. Typing, blur and close all come here.
+  function applyText(raw) {
+    if (!why) return false;
+    var text = String(raw).trim().slice(0, NOTE_MAX);
+    if (text === why.last) return false;
+    why.last = text;
+    var rebuild = false;
+    if (!why.ids.length) {                        // lazy neutral: the first non-empty character creates the mark
+      if (!text || !why.pending || !why.pending.length) return false;
+      var set = rid(6), at = new Date().toISOString();
+      why.pending.forEach(function (t) {
+        var m = buildMark(t, 0, text, set, at);
+        if (m) { marks.push(m); why.ids.push(m.id); }
+      });
+      if (!why.ids.length) return false;
+      why.pending = null;
+      rebuild = true;
+    } else {
+      var gone = [];
+      why.ids.forEach(function (id) {
+        var m = byId(id);
+        if (!m) return;
+        if (m.score === 0 && !text) gone.push(m); else m.note = text;
+      });
+      if (gone.length) {                          // an empty neutral is not stored
+        var back = gone.map(targetOf).filter(Boolean);
+        removeMarks(gone.map(function (m) { return m.id; }));
+        why.ids = why.ids.filter(function (id) { return !!byId(id); });
+        if (!why.ids.length) {
+          why.pending = back;
+          why.anchor = back[0] && back[0].whole ? { type: 'ver', block: back[0].block } : { type: 'bar' };
+        }
+        rebuild = true;
+      }
+    }
+    why.dirty = true;
+    setHint('Saving…');
+    if (why.rm) why.rm.hidden = !why.ids.length;
+    patchNotes(why.ids);
+    if (rebuild) { if (host && host.changed) host.changed(); } else if (host && host.markChanged) host.markChanged();
+    return true;
+  }
+
+  // Called by the host after a good save with nothing newer waiting.
+  function saved() {
+    if (why && why.dirty) { why.dirty = false; setHint('Saved'); }
+  }
+
+  function removeWhy() {
+    var w = why;
+    why = null;                                   // before removing: a focused node fires blur
+    if (w && w.el && w.el.parentNode) w.el.parentNode.removeChild(w.el);
+    if (w && w.ids.length) {
+      removeMarks(w.ids);
+      if (host && host.changed) host.changed();
+    }
   }
 
   function focusWhy() {
-    if (why && why.el.style.display !== 'none') {
-      try { why.input.focus({ preventScroll: true }); } catch (e) { why.input.focus(); }
+    if (why && why.ta && why.el.style.display !== 'none') {
+      try { why.ta.focus({ preventScroll: true }); } catch (e) { why.ta.focus(); }
     }
   }
 
@@ -464,6 +633,10 @@
     if (!why) return null;
     if (why.anchor.type === 'bar') return barEl && !barEl.hidden ? barEl : null;
     if (!docEl) return null;
+    if (why.anchor.type === 'mark') {
+      var ps = Array.prototype.filter.call(docEl.querySelectorAll('mark.fb'), function (e) { return e.dataset.fb === why.anchor.id; });
+      return ps[why.anchor.idx] || ps[0] || null;
+    }
     var list = docEl.querySelectorAll('.block');
     for (var i = 0; i < list.length; i++) {
       if (list[i].dataset.block === why.anchor.block) return list[i].querySelector('.fb-ver');
@@ -472,7 +645,7 @@
   }
 
   function reposition() {
-    if (!why) return;
+    if (!why || !why.el) return;
     var a = anchorEl();
     var rect = a ? a.getBoundingClientRect() : null;
     if (!rect || (!rect.width && !rect.height)) { why.el.style.display = 'none'; return; }
@@ -485,10 +658,19 @@
     why.el.style.left = left + 'px';
   }
 
-  function patchNotes(set) {
+  function patchNotes(ids) {
     if (!HAS_DOM || !docEl) return;
-    marks.forEach(function (m) {
-      if (m.set !== set) return;
+    ids.forEach(function (id) {
+      var m = byId(id);
+      if (!m) return;
+      if (m.quote === null) {
+        Array.prototype.forEach.call(docEl.querySelectorAll('.fb-ver'), function (v) {
+          if (v.dataset.block !== m.block || v.dataset.version !== String(m.version)) return;
+          var b = v.querySelector('[data-note]');
+          if (b) setNoteBtn(b, !!m.note);
+        });
+        return;
+      }
       Array.prototype.forEach.call(docEl.querySelectorAll('mark.fb'), function (el) {
         if (el.dataset.fb !== m.id) return;
         if (m.note) el.title = m.note; else el.removeAttribute('title');
@@ -497,31 +679,14 @@
     });
   }
 
-  // save: keep the typed note. defer: patch the page now, tell the host after the mouse is up.
-  function closeWhyInner(save, defer) {
+  // Save what is typed, then drop the box. Nothing typed is thrown away.
+  function closeWhy() {
     if (!why) return;
+    if (why.ta) applyText(why.ta.value);          // blur or Esc without an input event, IME, paste
     var w = why;
     why = null;
-    var changed = false;
-    if (save) {
-      var text = w.input.value.trim().slice(0, NOTE_MAX);
-      if (text !== w.orig) {
-        marks.forEach(function (m) { if (m.set === w.set) m.note = text; });
-        changed = true;
-      }
-    }
-    if (w.el.parentNode) w.el.parentNode.removeChild(w.el);
-    if (!changed) return;
-    patchNotes(w.set);
-    if (!host || !host.changed) return;
-    if (defer && HAS_DOM) {
-      document.addEventListener('mouseup', function () { setTimeout(host.changed, 0); }, { once: true });
-    } else {
-      host.changed();
-    }
+    if (w.el && w.el.parentNode) w.el.parentNode.removeChild(w.el);
   }
-
-  function closeWhy() { closeWhyInner(false, false); }
 
   // ---------------------------------------------------------------- setup
 
@@ -535,7 +700,7 @@
       if (!why) return;
       var t = e.target && e.target.nodeType === 1 ? e.target : e.target && e.target.parentElement;
       if (t && t.closest && t.closest('#fbwhy, #selbar, .fb-ver')) return;
-      closeWhyInner(true, true);
+      closeWhy();
     }, true);
   }
 
@@ -548,6 +713,9 @@
     versionButtons: versionButtons,
     syncBar: syncBar,
     voteSelection: voteSelection,
+    noteSelection: noteSelection,
+    openMark: openMark,
+    saved: saved,
     reposition: reposition,
     closeWhy: closeWhy,
     rangeOf: rangeOf,
@@ -555,6 +723,8 @@
       findQuote: findQuote,
       nextScore: nextScore,
       overlaps: overlaps,
+      type: applyText,
+      removeNote: removeWhy,
       remember: function (block, version, text) { texts[textKey(block, version)] = text; }
     }
   };

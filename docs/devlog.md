@@ -2,6 +2,18 @@
 
 Newest first. Short, dated, what changed and why.
 
+## 2026-10-24 Feedback notes
+
+- Fixed: a note was lost when you pressed 👍 several times, changed 👍 to 👎, or cleared a thumb. A vote now edits the mark in place and keeps its note.
+- Fixed: clicking a mark did not show its note. It now opens the note box with the saved note.
+- Added neutral notes (score 0, a note with no thumb) and a 💬 Note button in the selection bar and the badge row. Neutral marks have a violet dotted underline.
+- The note box is a 3-line textarea that saves as you type and shows "Saved". Esc, clicking away and moving on all save.
+- ui.json saves go one at a time, latest wins. Typing no longer redraws the page.
+- Notes now go up to 2000 characters. The old 280 cap silently stopped typing in a real note.
+- Fixed CONTRACT.md: closing a group keeps its marks and notes in ui.json.
+- Updated `OWNWORDS.md` so agents read notes on every mark, score 0 included. Decision D7.
+- Lesson: note and vote must be independent fields on one mark.
+
 ## 2026-10-24 Launch and share
 
 - Added `AGENTS.md`: rules for agents changing the code, including that every change updates these docs. `CLAUDE.md` points to it.

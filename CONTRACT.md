@@ -62,7 +62,7 @@ Written by the page. The server stores the POST body as is (a JSON object, max 1
 - `selection`: null or the page's current text selection. `selection.scope` may be `"mark"`: the selection is exactly one feedback mark, and `selection.mark` is that mark's id.
 - `picks`: group id to version. 1-based: `n` shows `options[n-1]`. 0 shows the .md text.
 - `compare`: per group. `on` shows a diff against version `base` (0 is the .md text, n is `options[n-1]`).
-- `feedback`: marks. `score` is -2, -1, 1 or 2 (dislike or like, strong or not). `version` is the pick the mark was made on. `quote` null marks the whole version. `block` is a group id or `p<index>`. `before` and `start` help find the quote again. `set` groups marks from one vote.
+- `feedback`: marks. A mark is a range, a `score` and a `note`. `score` is -2, -1, 0, 1 or 2 (dislike or like, strong or not). `0` is a neutral note: a comment with no thumb. It exists only with a non-empty `note`; the page drops a score-0 mark whose note is empty. `note` is on every mark, thumbs or neutral, up to 2000 characters, and is independent of the score. Old files need no change. `version` is the pick the mark was made on. `quote` null marks the whole version. `block` is a group id or `p<index>`. `before` and `start` help find the quote again. `set` groups marks from one vote.
 - Missing or unparsable file: the server serves `{ "selection": null, "picks": {} }`.
 
 ## HTTP
@@ -107,7 +107,7 @@ Every request needs a `Host` of `127.0.0.1:<port>` or `localhost:<port>`, else 4
 - Drop (pick 0, any group including the title): the .md is not written, no rename, no snapshot. The group is removed and logs `Dropped other versions of "<first 6 words of original>…"`. Returns `{ slug }`.
 - Every accept appends `{ id, original, options, result, pick, at }` to closed.json (creates the file if missing; a closed.json that is not a JSON array gives 500 and nothing is written).
 - 400: bad JSON, missing fields, `pick` below 0 or out of range, empty title after cleaning. 404: no piece, group missing or stale. 409 `{ "error": "changed" }`: etag given and differs, or the file changed during the write. The page then reloads.
-- The group is removed from `groups` and added to closed.json. ui.json is not touched; the page drops picks, compare and feedback for it.
+- The group is removed from `groups` and added to closed.json. ui.json is not touched. The page drops picks and compare for the group (they point at a group that is gone) but keeps its `feedback` marks, notes included. Marks on a closed group stay in ui.json and may no longer be painted. Before acting on a note, check that the mark's `block` and `quote` still exist.
 
 **POST /api/restore/:slug**: body `{ "file": "<history[].file>", "etag": "<etag of the last GET>" }`. `file` is checked like GET /api/history (must match `<YYYYMMDD-HHMMSS-mmm>.md`, else 400). 404: no piece or no such snapshot. 409 `{ "error": "changed" }`: etag differs. Inside the per-piece lock it adds the log entry `Restored <HH:MM local time of the snapshot>` to versions.json, writes the snapshot text to the .md (never renames), then refreshes, which makes a new snapshot carrying that note. Returns `{ ok: true }`.
 

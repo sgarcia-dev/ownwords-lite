@@ -32,6 +32,7 @@
   var fails = 0;
   var netErr = false; // set by poll() when a fetch itself fails (server gone)
   var pendingUi = {}; // slug -> latest ui body that could not be saved yet
+  var uiQ = {}; // slug -> { busy, next, waiters }: ui.json posts go one at a time, latest wins
 
   function resetState(slug) {
     state = {
@@ -332,15 +333,32 @@
 
   // A save that cannot reach the server is kept and sent again after the next good poll.
   function sendUi(slug, body) {
-    return fetch('/api/ui/' + encodeURIComponent(slug), {
+    var q = uiQ[slug] || (uiQ[slug] = { busy: false, next: null, waiters: [] });
+    q.next = body; // latest wins
+    return new Promise(function (resolve) { q.waiters.push(resolve); pumpUi(slug); });
+  }
+
+  function pumpUi(slug) {
+    var q = uiQ[slug];
+    if (q.busy || q.next === null) return;
+    var body = q.next, waiters = q.waiters, ok = false;
+    q.next = null; q.waiters = []; q.busy = true;
+    fetch('/api/ui/' + encodeURIComponent(slug), {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body
-    }).then(function (r) {
-      if (pendingUi[slug] === body) delete pendingUi[slug];
-    }, function () { pendingUi[slug] = body; });
+    })
+      .then(function (r) { ok = r.ok; if (r.ok) delete pendingUi[slug]; }, function () { if (q.next === null) pendingUi[slug] = body; })
+      .then(function () {
+        q.busy = false;
+        waiters.forEach(function (w) { w(); });
+        if (q.next !== null) pumpUi(slug);
+        else if (ok && !saveTimer && hasFb('saved')) OW.feedback.saved();
+      });
   }
 
   function flushPending() {
     Object.keys(pendingUi).forEach(function (slug) {
+      var q = uiQ[slug];
+      if (q && (q.busy || q.next !== null)) return; // a newer body is on its way
       var body = pendingUi[slug];
       delete pendingUi[slug];
       sendUi(slug, body);
@@ -1179,6 +1197,7 @@
     try { h = decodeURIComponent(h); } catch (e) {}
     var slug = h && h[0] !== '.' && !/[\/\\\x00-\x1f\x7f]/.test(h) ? h : null;
     if (hasFb('closeWhy')) OW.feedback.closeWhy();
+    if (saveTimer) flushSave(); // closeWhy may have queued a save; resetState clears the timer
     resetState(slug);
     if (h && !slug) { state.slug = h; state.notFound = true; }
     window.scrollTo(0, 0);
@@ -1269,6 +1288,7 @@
         if (r) {
           state.anchor = null;
           setSel('mark', { block: r.block, off: r.start }, { block: r.block, off: r.end }, false, mk.dataset.fb);
+          if (hasFb('openMark')) OW.feedback.openMark(mk.dataset.fb, mk);
           return;
         }
       }
@@ -1294,8 +1314,11 @@
     els.bar.addEventListener('click', function (e) {
       var act = e.target.closest('button[data-action]');
       if (act) { if (hasFb('voteSelection')) OW.feedback.voteSelection(act.dataset.action); return; }
+      var nb = e.target.closest('button[data-note]');
+      if (nb) { if (hasFb('noteSelection')) OW.feedback.noteSelection(); return; }
       var b = e.target.closest('button[data-scope]');
       if (!b) return;
+      if (hasFb('closeWhy')) OW.feedback.closeWhy(); // a pending note must not be made on a stale range
       if (b.dataset.scope === 'clear') clearSel(); else widen(b.dataset.scope);
     });
 
@@ -1319,6 +1342,7 @@
 
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') {
+        if (hasFb('closeWhy')) OW.feedback.closeWhy();
         if (state.sel || state.anchor) { clearSel(); }
         return;
       }
@@ -1388,7 +1412,7 @@
     if (hasFb('init')) {
       OW.feedback.init({
         bar: els.bar, doc: els.doc,
-        host: { selection: fbSelection, changed: function () { scheduleSave(); render(); } }
+        host: { selection: fbSelection, changed: function () { scheduleSave(); render(); }, markChanged: function () { scheduleSave(); } }
       });
     }
     setupEvents();

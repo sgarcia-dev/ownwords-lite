@@ -1,7 +1,8 @@
-/* Ownwords Lite: like and dislike marks. */
+/* Ownwords Lite: like, dislike and neutral note marks. */
 :root {
   --fb-like: #1a7f37;
   --fb-dis: #cf222e;
+  --fb-neutral: #7c4dcc;
   --fb-bg: #ffffff;
   --fb-line: #e6e1d7;
   --fb-fg: #211f1c;
@@ -12,6 +13,7 @@
   :root {
     --fb-like: #3fb950;
     --fb-dis: #f85149;
+    --fb-neutral: #b392f0;
     --fb-bg: #212126;
     --fb-line: #2d2d32;
     --fb-fg: #e7e3da;
@@ -35,6 +37,10 @@ mark.fb.fb-dis {
   text-decoration-style: dashed;
   text-decoration-color: var(--fb-dis, #cf222e);
 }
+mark.fb.fb-neutral {
+  text-decoration-style: dotted;
+  text-decoration-color: var(--fb-neutral, #7c4dcc);
+}
 mark.fb.fb-s2 { text-decoration-thickness: 4px; }
 
 /* The note dot is CSS only, so it is never part of the text. */
@@ -49,6 +55,7 @@ mark.fb-note.fb-last::after {
   background: var(--fb-like, #1a7f37);
 }
 mark.fb-note.fb-last.fb-dis::after { background: var(--fb-dis, #cf222e); }
+mark.fb-note.fb-last.fb-neutral::after { background: var(--fb-neutral, #7c4dcc); }
 
 /* Vote buttons, in the selection bar and in the version row. */
 .fb-btn {
@@ -81,13 +88,16 @@ mark.fb-note.fb-last.fb-dis::after { background: var(--fb-dis, #cf222e); }
 .fb-ver .fb-btn:hover,
 .fb-ver .fb-btn.on { opacity: 1; }
 
-/* The Why field. */
+/* The note box. */
 #fbwhy {
   position: fixed;
   z-index: 31;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  max-width: calc(100vw - 16px);
+  box-sizing: border-box;
   padding: 6px 8px;
   background: var(--panel, var(--fb-bg, #ffffff));
   color: var(--fg, var(--fb-fg, #211f1c));
@@ -96,19 +106,41 @@ mark.fb-note.fb-last.fb-dis::after { background: var(--fb-dis, #cf222e); }
   box-shadow: var(--shadow, 0 4px 18px rgba(30, 25, 15, 0.14));
   font-family: var(--sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
 }
-#fbwhy input {
-  width: min(280px, 60vw);
+#fbwhy textarea {
+  box-sizing: border-box;
+  width: min(300px, calc(100vw - 48px));
+  resize: none;
   font: inherit;
   font-size: 13px;
+  line-height: 1.4;
   padding: 5px 8px;
   color: inherit;
   background: transparent;
   border: 1px solid var(--line, var(--fb-line, #e6e1d7));
   border-radius: 6px;
 }
-#fbwhy input:focus { outline: 2px solid var(--fb-like, #1a7f37); outline-offset: 0; }
+#fbwhy textarea:focus { outline: 2px solid var(--fb-neutral, #7c4dcc); outline-offset: 0; }
+#fbwhy .fb-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#fbwhy .fb-remove {
+  font: inherit;
+  font-size: 12px;
+  border: 0;
+  background: transparent;
+  color: var(--muted, var(--fb-muted, #7b756b));
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+#fbwhy .fb-remove:hover { background: var(--hover, rgba(240, 190, 60, 0.26)); }
 #fbwhy .fb-hint {
   font-size: 12px;
   color: var(--muted, var(--fb-muted, #7b756b));
   white-space: nowrap;
+  min-width: 52px;
+}
+
+/* Narrow screens: keep the selection bar inside the viewport (loads after style.css). */
+@media (max-width: 600px) {
+  #selbar { max-width: calc(100vw - 16px); flex-wrap: wrap; justify-content: center; }
+  #selbar button, #selbar .fb-btn { padding: 7px 5px; font-size: 12.5px; }
 }

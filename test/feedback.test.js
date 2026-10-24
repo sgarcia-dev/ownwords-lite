@@ -191,3 +191,168 @@ test('voteSelection does nothing when the selection overlaps a mark', () => {
   assert.deepEqual(fb.getAll().map((m) => [m.id, m.score]), [['a', 1]]);
   assert.equal(changes, 0);
 });
+
+// ---- notes: independent from the thumb, neutral marks, never lost
+function run(targets) {
+  const calls = { changed: 0, markChanged: 0 };
+  const sel = Array.isArray(targets) ? targets : [targets];
+  fb.load([]);
+  fb._test.remember('p1', 0, 'The cat sat.');
+  fb._test.remember('p2', 0, 'Second one.');
+  fb.init({
+    bar: null,
+    doc: null,
+    host: {
+      selection: () => ({ text: '', targets: sel }),
+      changed() { calls.changed++; },
+      markChanged() { calls.markChanged++; }
+    }
+  });
+  return calls;
+}
+const CAT = { block: 'p1', version: 0, start: 4, end: 7 };
+
+test('three likes keep the note as a neutral mark', () => {
+  run(CAT);
+  fb.voteSelection('like');
+  const id = fb.getAll()[0].id;
+  fb._test.type('why');
+  const seen = [];
+  for (let i = 0; i < 3; i++) {
+    fb.voteSelection('like');
+    const all = fb.getAll();
+    assert.equal(all.length, 1);
+    assert.equal(all[0].id, id);
+    assert.equal(all[0].note, 'why');
+    seen.push(all[0].score);
+  }
+  assert.deepEqual(seen, [2, 0, 1]);
+});
+
+test('like to dislike keeps the note and the id', () => {
+  run(CAT);
+  fb.voteSelection('like');
+  const id = fb.getAll()[0].id;
+  fb._test.type('keep me');
+  fb.voteSelection('dislike');
+  let m = fb.getAll()[0];
+  assert.deepEqual([m.score, m.note, m.id], [-1, 'keep me', id]);
+  fb.voteSelection('dislike');
+  m = fb.getAll()[0];
+  assert.deepEqual([m.score, m.note], [-2, 'keep me']);
+});
+
+test('a neutral mark with an empty note is not stored', () => {
+  const calls = run(CAT);
+  fb.noteSelection();
+  assert.equal(fb.getAll().length, 0);
+  fb._test.type('   ');
+  assert.equal(fb.getAll().length, 0);
+  fb.closeWhy();
+  assert.equal(fb.getAll().length, 0);
+  fb.noteSelection();
+  fb._test.type('a');
+  const all = fb.getAll();
+  assert.equal(all.length, 1);
+  assert.deepEqual([all[0].score, all[0].note], [0, 'a']);
+  assert.equal(calls.changed, 1);
+  fb._test.type('');
+  assert.equal(fb.getAll().length, 0);
+});
+
+test('score 0 with a note survives clean(), without a note it does not', () => {
+  run(CAT);
+  fb.noteSelection();
+  fb._test.type('n');
+  fb.load(fb.getAll());
+  assert.equal(fb.getAll().length, 1);
+  fb.load([mk({ id: 'n', score: 0, note: 'x' })]);
+  assert.equal(fb.getAll().length, 1);
+  fb.load([mk({ id: 'z', score: 0, note: '  ' })]);
+  assert.equal(fb.getAll().length, 0);
+});
+
+test('remove deletes the mark, thumb or neutral', () => {
+  const calls = run(CAT);
+  fb.voteSelection('like');
+  fb._test.type('x');
+  const before = calls.changed;
+  fb._test.removeNote();
+  assert.equal(fb.getAll().length, 0);
+  assert.equal(calls.changed, before + 1);
+  fb.noteSelection();
+  fb._test.type('y');
+  assert.equal(fb.getAll().length, 1);
+  fb._test.removeNote();
+  assert.equal(fb.getAll().length, 0);
+});
+
+test('neutral to a thumb keeps the note', () => {
+  run(CAT);
+  fb.noteSelection();
+  fb._test.type('n');
+  const id = fb.getAll()[0].id;
+  fb.voteSelection('dislike');
+  const m = fb.getAll()[0];
+  assert.deepEqual([m.score, m.note, m.id], [-1, 'n', id]);
+});
+
+test('a note is saved by mark id, not by vote set', () => {
+  run([{ block: 'p1', version: 0, start: 0, end: 3 }, { block: 'p2', version: 0, start: 0, end: 6 }]);
+  fb.voteSelection('like');
+  const all = fb.getAll();
+  assert.equal(all[0].set, all[1].set);
+  fb.openMark(all[0].id);
+  fb._test.type('only');
+  const after = fb.getAll();
+  assert.equal(after[0].note, 'only');
+  assert.equal(after[1].note, '');
+});
+
+test('the note button over an overlap opens the covering mark', () => {
+  run({ block: 'p1', version: 0, start: 2, end: 5 });
+  fb.load([cat()]);
+  fb._test.remember('p1', 0, TEXT);
+  fb.noteSelection();
+  fb._test.type('n');
+  const all = fb.getAll();
+  assert.equal(all.length, 1);
+  assert.deepEqual([all[0].id, all[0].note], ['a', 'n']);
+});
+
+test('typing in an existing note calls markChanged, a new neutral mark calls changed', () => {
+  const calls = run(CAT);
+  fb.voteSelection('like');
+  const c0 = calls.changed;
+  fb._test.type('abc');
+  fb._test.type('abcd');
+  assert.equal(calls.changed, c0);
+  assert.equal(calls.markChanged, 2);
+  fb.closeWhy();
+  assert.equal(fb.getAll()[0].note, 'abcd');
+});
+
+test('whole-version marks: a thumb with a note stays, an empty neutral goes', () => {
+  run({ block: 'p1', version: 0, whole: true });
+  fb.load([mk({ id: 'w', quote: null, score: 1, note: 'keep' })]);
+  fb.openMark('w');
+  fb._test.type('');
+  const m = fb.getAll();
+  assert.equal(m.length, 1);
+  assert.equal(m[0].note, '');
+  fb.load([mk({ id: 'v', quote: null, score: 0, note: 'gone' })]);
+  fb.openMark('v');
+  fb._test.type('');
+  assert.equal(fb.getAll().length, 0);
+});
+
+test('closing the box keeps the typed note (navigation, click-away, Esc)', () => {
+  run(CAT);
+  fb.voteSelection('like');
+  fb._test.type('saved');
+  fb.closeWhy();
+  assert.equal(fb.getAll()[0].note, 'saved');
+  fb.voteSelection('like');
+  fb.closeWhy();
+  assert.equal(fb.getAll()[0].note, 'saved');
+});
