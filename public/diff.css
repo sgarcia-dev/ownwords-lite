@@ -1,0 +1,150 @@
+/* Ownwords Lite: diff marks and timeline panel. */
+:root {
+  --ow-del-bg: rgba(200, 40, 40, 0.12);
+  --ow-del-fg: #a52222;
+  --ow-ins-bg: rgba(40, 150, 70, 0.14);
+  --ow-ins-fg: #1c6b34;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ow-del-bg: rgba(255, 110, 110, 0.16);
+    --ow-del-fg: #ff9a9a;
+    --ow-ins-bg: rgba(90, 210, 120, 0.16);
+    --ow-ins-fg: #8fe0a6;
+  }
+}
+
+.ow-del, del.ow-del {
+  background: var(--ow-del-bg);
+  color: var(--ow-del-fg);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  border-radius: 2px;
+}
+.ow-ins, ins.ow-ins {
+  background: var(--ow-ins-bg);
+  color: var(--ow-ins-fg);
+  text-decoration: none;
+  border-radius: 2px;
+}
+
+/* Timeline panel */
+.ow-timeline {
+  --tl-bg: var(--panel-bg, #faf8f4);
+  --tl-fg: var(--fg, #2a2622);
+  --tl-muted: var(--muted, #6f675e);
+  --tl-line: var(--border, #e2ddd4);
+  --tl-accent: var(--accent, #3f6fa8);
+  --tl-hl: var(--accent-soft, rgba(63, 111, 168, 0.12));
+  --tl-ui: var(--font-ui, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif);
+
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 300px;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
+  padding: 14px 14px 24px;
+  background: var(--tl-bg);
+  color: var(--tl-fg);
+  border-left: 1px solid var(--tl-line);
+  font-family: var(--tl-ui);
+  font-size: 14px;
+  line-height: 1.4;
+  z-index: 20;
+}
+.ow-timeline[hidden] { display: none; }
+@media (prefers-color-scheme: dark) {
+  .ow-timeline {
+    --tl-bg: var(--panel-bg, #23211f);
+    --tl-fg: var(--fg, #e8e3db);
+    --tl-muted: var(--muted, #a39b90);
+    --tl-line: var(--border, #3a3632);
+    --tl-accent: var(--accent, #8fb4e3);
+    --tl-hl: var(--accent-soft, rgba(143, 180, 227, 0.16));
+  }
+}
+@media (max-width: 640px) {
+  .ow-timeline { width: 100%; border-left: 0; }
+}
+
+.ow-tl-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.ow-tl-title { margin: 0; font-size: 15px; font-weight: 600; }
+.ow-tl-empty { color: var(--tl-muted); margin: 8px 0; }
+
+.ow-tl-list { list-style: none; margin: 0; padding: 0; }
+.ow-tl-row {
+  padding: 9px 10px;
+  margin: 0 -10px;
+  border-bottom: 1px solid var(--tl-line);
+  border-left: 3px solid transparent;
+}
+.ow-tl-row.is-base,
+.ow-tl-row.is-shown { background: var(--tl-hl); }
+.ow-tl-row.is-base { border-left-color: var(--tl-accent); }
+.ow-tl-row.is-shown { border-left-color: var(--ow-ins-fg); }
+
+.ow-tl-meta { display: flex; align-items: center; gap: 8px; }
+.ow-tl-time { font-variant-numeric: tabular-nums; font-weight: 600; }
+.ow-tl-now {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--tl-accent);
+  color: var(--tl-bg);
+}
+.ow-tl-note {
+  margin: 3px 0 6px;
+  color: var(--tl-muted);
+  overflow-wrap: anywhere;
+}
+.ow-tl-actions { display: flex; gap: 6px; }
+
+.ow-tl-btn {
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--tl-line);
+  background: transparent;
+  color: var(--tl-fg);
+  cursor: pointer;
+}
+.ow-tl-btn:hover { border-color: var(--tl-accent); }
+.ow-tl-btn:focus-visible { outline: 2px solid var(--tl-accent); outline-offset: 1px; }
+.ow-tl-btn[aria-pressed="true"] {
+  background: var(--tl-accent);
+  border-color: var(--tl-accent);
+  color: var(--tl-bg);
+}
+.ow-tl-live { border-color: var(--tl-accent); color: var(--tl-accent); }
+
+/* Whole-piece diff */
+.ow-docdiff { --dd-same: var(--muted, #6f675e); }
+.ow-docdiff .ow-row {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding-left: 10px;
+  border-left: 3px solid transparent;
+}
+.ow-docdiff .ow-same { color: var(--dd-same); }
+.ow-docdiff .ow-added { border-left-color: var(--ow-ins-fg); }
+.ow-docdiff .ow-removed { border-left-color: var(--ow-del-fg); }
+.ow-docdiff .ow-changed { border-left-color: var(--accent, #3f6fa8); color: var(--fg, inherit); }
+.ow-docdiff .ow-added ins,
+.ow-docdiff .ow-removed del { display: inline; }
+.ow-docdiff .ow-nochange { color: var(--dd-same); font-style: italic; }
+@media (prefers-color-scheme: dark) {
+  .ow-docdiff { --dd-same: var(--muted, #a39b90); }
+  .ow-docdiff .ow-changed { border-left-color: var(--accent, #8fb4e3); }
+}

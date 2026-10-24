@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Ownwords Lite</title>
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#fbfaf7">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="diff.css">
+<link rel="stylesheet" href="feedback.css">
+</head>
+<body>
+<header id="hdr">
+  <a id="back" href="#" hidden>&lsaquo; Pieces</a>
+  <h1 id="title">Ownwords Lite</h1>
+  <nav id="actions" hidden>
+    <button type="button" id="btn-timeline" aria-pressed="false">Timeline</button>
+    <button type="button" id="btn-copy">Copy text</button>
+    <button type="button" id="btn-prompt">Copy prompt</button>
+    <button type="button" id="btn-reveal" hidden>Show in Finder</button>
+  </nav>
+</header>
+<div id="offline" role="alert" hidden>Ownwords stopped. Double-click Open Ownwords in your folder, or ask your agent. Your text is safe.</div>
+
+<main id="main">
+  <section id="home" hidden></section>
+  <div id="banner" hidden></div>
+  <article id="doc" hidden></article>
+  <section id="stale" hidden></section>
+</main>
+
+<div id="selbar" role="toolbar" aria-label="Selection size" hidden>
+  <button type="button" data-scope="sentence">Sentence</button>
+  <button type="button" data-scope="paragraph">Paragraph</button>
+  <button type="button" data-scope="section">Section</button>
+  <button type="button" data-scope="all">All</button>
+  <button type="button" class="fb-btn" data-action="like" aria-label="Like">&#128077;</button>
+  <button type="button" class="fb-btn" data-action="dislike" aria-label="Dislike">&#128078;</button>
+  <button type="button" data-scope="clear" aria-label="Clear selection">&times;</button>
+</div>
+
+<div id="strip" hidden>
+  <span id="strip-text"></span>
+  <button type="button" id="btn-ref">Copy reference</button>
+</div>
+
+<script src="diff.js"></script>
+<script src="timeline.js"></script>
+<script src="feedback.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+{
+  "groups": [
+    {
+      "id": "g1",
+      "original": "I used to start every morning by opening my email. Within ten minutes I was answering other people's questions and my own plans were gone. By noon I felt busy but had nothing to show for it.",
+      "options": [
+        {
+          "text": "I used to open my email before anything else. Ten minutes later I was answering other people's questions, and my own plans were forgotten. By noon I felt busy but had little to show.",
+          "note": "Tighter"
+        },
+        {
+          "text": "Every morning began in my inbox. Within ten minutes I was solving other people's problems, and my own plans were gone. By noon I was tired and had nothing finished.",
+          "note": "More direct"
+        },
+        {
+          "text": "I used to start each morning with email. Ten minutes in, I was busy with everyone else's questions and my own plans had slipped away. By noon I had nothing to show for it.",
+          "note": "Gentler"
+        }
+      ]
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-10-23T09:00:00.000Z",
+      "note": "Started"
+    },
+    {
+      "at": "2026-10-23T09:06:00.000Z",
+      "note": "Shortened intro, kept his tone"
+    },
+    {
+      "at": "2026-10-23T09:12:00.000Z",
+      "note": "Three options for the morning paragraph"
+    }
+  ]
+}

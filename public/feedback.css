@@ -1,0 +1,114 @@
+/* Ownwords Lite: like and dislike marks. */
+:root {
+  --fb-like: #1a7f37;
+  --fb-dis: #cf222e;
+  --fb-bg: #ffffff;
+  --fb-line: #e6e1d7;
+  --fb-fg: #211f1c;
+  --fb-muted: #7b756b;
+  --fb-sel: rgba(47, 106, 158, 0.22);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fb-like: #3fb950;
+    --fb-dis: #f85149;
+    --fb-bg: #212126;
+    --fb-line: #2d2d32;
+    --fb-fg: #e7e3da;
+    --fb-muted: #9b958a;
+    --fb-sel: rgba(127, 178, 224, 0.28);
+  }
+}
+
+/* Marks: underline only, no background fill. */
+mark.fb {
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  text-decoration-line: underline;
+  text-decoration-style: solid;
+  text-decoration-thickness: 2px;
+  text-decoration-color: var(--fb-like, #1a7f37);
+  text-underline-offset: 3px;
+}
+mark.fb.fb-dis {
+  text-decoration-style: dashed;
+  text-decoration-color: var(--fb-dis, #cf222e);
+}
+mark.fb.fb-s2 { text-decoration-thickness: 4px; }
+
+/* The note dot is CSS only, so it is never part of the text. */
+mark.fb-note.fb-last::after {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-left: 2px;
+  border-radius: 50%;
+  vertical-align: super;
+  background: var(--fb-like, #1a7f37);
+}
+mark.fb-note.fb-last.fb-dis::after { background: var(--fb-dis, #cf222e); }
+
+/* Vote buttons, in the selection bar and in the version row. */
+.fb-btn {
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 4px 7px;
+}
+.fb-btn:hover { background: var(--hover, rgba(240, 190, 60, 0.26)); }
+.fb-btn.on { background: var(--sel, var(--fb-sel, rgba(47, 106, 158, 0.22))); }
+.fb-btn.on[data-action="like"][data-level="2"] { box-shadow: inset 0 -3px 0 var(--fb-like, #1a7f37); }
+.fb-btn.on[data-action="dislike"][data-level="2"] { box-shadow: inset 0 -3px 0 var(--fb-dis, #cf222e); }
+/* Overlaps a mark: voting is off until the selection changes. */
+.fb-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.fb-btn:disabled:hover { background: transparent; }
+#selbar .fb-btn { padding: 7px 9px; }
+
+.fb-ver {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.fb-ver .fb-btn { opacity: 0.7; }
+.fb-ver .fb-btn:hover,
+.fb-ver .fb-btn.on { opacity: 1; }
+
+/* The Why field. */
+#fbwhy {
+  position: fixed;
+  z-index: 31;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--panel, var(--fb-bg, #ffffff));
+  color: var(--fg, var(--fb-fg, #211f1c));
+  border: 1px solid var(--line, var(--fb-line, #e6e1d7));
+  border-radius: 9px;
+  box-shadow: var(--shadow, 0 4px 18px rgba(30, 25, 15, 0.14));
+  font-family: var(--sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
+}
+#fbwhy input {
+  width: min(280px, 60vw);
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 8px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--line, var(--fb-line, #e6e1d7));
+  border-radius: 6px;
+}
+#fbwhy input:focus { outline: 2px solid var(--fb-like, #1a7f37); outline-offset: 0; }
+#fbwhy .fb-hint {
+  font-size: 12px;
+  color: var(--muted, var(--fb-muted, #7b756b));
+  white-space: nowrap;
+}

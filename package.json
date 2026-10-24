@@ -1,0 +1,19 @@
+{
+  "name": "ownwords-lite",
+  "version": "0.1.0",
+  "description": "A local page for polishing your writing with an AI agent.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sgarcia-dev/ownwords-lite.git"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  }
+}
