@@ -4,6 +4,7 @@ Newest first. Short, dated, what changed and why.
 
 ## 2026-10-24 Launch and share
 
+- Added `AGENTS.md`: rules for agents changing the code, including that every change updates these docs. `CLAUDE.md` points to it.
 - Added an `Open Ownwords` launcher for macOS, built on the user's machine, that starts the server and opens an app window.
 - The server writes `OWNWORDS.md` into the folder on start; the `polish` skill became a pointer to it. Added a "Copy prompt" button for agents without skills.
 - The server stops after 10 minutes unused. The page shows "Ownwords stopped" and keeps unsaved changes. Added `/api/info`, `/api/stop`, a Host allowlist and JSON-only POSTs.
