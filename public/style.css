@@ -354,3 +354,67 @@ body.tl-open #timeline { transform: none; visibility: visible; box-shadow: var(-
 .ow-tl-copy { margin: 0 0 10px; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
 .ow-tl-msg { margin: 0 0 10px; font-size: 12.5px; color: #b3402a; }
 @media (prefers-color-scheme: dark) { .ow-tl-msg { color: #f0937e; } }
+
+/* Groups: a quiet marker in the text, and the version controls.
+   Wide pages (JS adds body.vp-on): the controls sit in a fixed panel at the right, one card per group in view.
+   Narrow pages: the bar sits under its block and sticks to the bottom of the window while the block is on screen. */
+.block.grp::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 0.2em;
+  bottom: 0.2em;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--line);
+  pointer-events: none;
+}
+.block.grp.active::before { background: var(--accent); }
+.block > .ver {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin-top: 4px;
+  padding: 6px 0;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+}
+body:has(#strip:not([hidden])) .block > .ver { bottom: 46px; }
+
+#vpanel {
+  position: fixed;
+  z-index: 18;
+  top: calc(var(--hdr) + 14px);
+  right: 12px;
+  width: 244px;
+  max-height: calc(100vh - var(--hdr) - 80px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: var(--sans);
+  user-select: none;
+  -webkit-user-select: none;
+}
+body.tl-open #vpanel { right: calc(var(--tlw) + 12px); }
+.vcard {
+  padding: 8px 10px 9px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+.vcard.active { border-color: var(--accent); }
+.vlabel {
+  margin-bottom: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vcard .ver { opacity: 1; margin-top: 0; }
+.vcard .cmp-sel { width: 100%; }

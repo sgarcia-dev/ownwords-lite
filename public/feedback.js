@@ -637,9 +637,10 @@
       var ps = Array.prototype.filter.call(docEl.querySelectorAll('mark.fb'), function (e) { return e.dataset.fb === why.anchor.id; });
       return ps[why.anchor.idx] || ps[0] || null;
     }
-    var list = docEl.querySelectorAll('.block');
+    // The version buttons sit under the block or in the page's side panel: look in the whole page.
+    var list = document.querySelectorAll('.fb-ver');
     for (var i = 0; i < list.length; i++) {
-      if (list[i].dataset.block === why.anchor.block) return list[i].querySelector('.fb-ver');
+      if (list[i].dataset.block === why.anchor.block) return list[i];
     }
     return null;
   }
@@ -654,6 +655,12 @@
     var top = rect.bottom + 6;
     if (top + h > window.innerHeight - 8) top = Math.max(8, rect.top - h - 6);
     var left = Math.max(8, Math.min(rect.left, window.innerWidth - w - 8));
+    var side = a.closest ? a.closest('#vpanel') : null;   // in the side panel: open to its left, so the card stays visible
+    if (side) {
+      var sr = side.getBoundingClientRect();
+      left = Math.max(8, sr.left - w - 8);
+      top = Math.max(8, Math.min(rect.top, window.innerHeight - h - 8));
+    }
     why.el.style.top = top + 'px';
     why.el.style.left = left + 'px';
   }
@@ -664,7 +671,7 @@
       var m = byId(id);
       if (!m) return;
       if (m.quote === null) {
-        Array.prototype.forEach.call(docEl.querySelectorAll('.fb-ver'), function (v) {
+        Array.prototype.forEach.call(document.querySelectorAll('.fb-ver'), function (v) {
           if (v.dataset.block !== m.block || v.dataset.version !== String(m.version)) return;
           var b = v.querySelector('[data-note]');
           if (b) setNoteBtn(b, !!m.note);

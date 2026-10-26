@@ -10,7 +10,10 @@
     home: $('home'), banner: $('banner'), doc: $('doc'), bar: $('selbar'),
     strip: $('strip'), stripText: $('strip-text'), btnRef: $('btn-ref'), stale: $('stale')
   };
-  var panel = null;
+  var panel = null; // the timeline aside
+  var vpanel = null; // the sticky version panel (wide pages)
+  var panelOn = false; // true: group controls live in #vpanel, not under each block
+  var vkey = ''; // ids of the cards now in #vpanel
 
   function el(tag, cls, text) {
     var e = document.createElement(tag);
@@ -39,7 +42,7 @@
       slug: slug, etag: null, doc: null, history: [], notFound: false,
       picks: {}, sel: null, anchor: null, hoverId: null,
       cmpFile: null, compare: {}, dir: null, canReveal: false, accBusy: false, accId: null, accMsg: '',
-      tlBusy: false, tlMsg: '', staleOpen: {},
+      tlBusy: false, tlMsg: '', staleOpen: {}, activeId: null,
       showFile: null, showDoc: null, pieces: null, piecesKey: ''
     };
     if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
@@ -177,6 +180,8 @@
     fillSel(s);
     if (!s.text.trim()) return;
     state.sel = s;
+    var sg = selGroup();
+    if (sg) state.activeId = sg;
     if (!native) clearNative();
     scheduleSave();
     updateSelUI();
@@ -586,9 +591,18 @@
   }
 
   // ---------------------------------------------------------------- versions
+  // The first group block inside the current selection, or null.
+  function selGroup() {
+    var s = state.sel;
+    if (!s) return null;
+    for (var i = 0; i < s.blocks.length; i++) if (hasOptions(liveBlock(s.blocks[i]))) return s.blocks[i];
+    return null;
+  }
+
   function cycle(id, dir) {
     var b = liveBlock(id);
     if (!hasOptions(b) || viewing() || comparing()) return;
+    state.activeId = id;
     state.accMsg = '';
     var n = b.options.length + 1;
     state.picks[id] = (((state.picks[id] || 0) + dir) % n + n) % n;
@@ -607,6 +621,8 @@
   }
 
   function keyTarget() {
+    // With the panel, the highlighted card is the target (the mouse may be over the panel).
+    if (panelOn && state.activeId && vkey.split('|').indexOf(state.activeId) >= 0 && hasOptions(liveBlock(state.activeId))) return state.activeId;
     var b = state.hoverId && liveBlock(state.hoverId);
     if (hasOptions(b)) return b.id;
     var s = state.sel;
@@ -721,7 +737,10 @@
     wrap.appendChild(box);
     if (ctx.marks && hasFb('paintBlock')) OW.feedback.paintBlock(wrap, b.id, state.picks[b.id] || 0, text);
 
-    if (ctx.badge && hasOptions(b)) wrap.appendChild(buildVer(b, ctx));
+    if (ctx.badge && hasOptions(b)) {
+      wrap.classList.add('grp'); // marker in the text; the controls are in #vpanel on wide pages
+      if (!panelOn) wrap.appendChild(buildVer(b, ctx));
+    }
     return wrap;
   }
 
@@ -736,6 +755,72 @@
         snapCache.set(key, doc);
         return doc;
       });
+  }
+
+  // ---------------------------------------------------------------- sticky version panel
+  // Room beside the text: the text column is 680px, the panel 244px. The open timeline takes 320px more.
+  function wantPanel() { return window.innerWidth >= (tlOn ? 1500 : 1180); }
+
+  function firstWords(text, n) {
+    var w = String(text || '').replace(/^#{1,3}[ \t]+/gm, '').replace(/\s+/g, ' ').trim().split(' ');
+    return w.slice(0, n).join(' ') + (w.length > n ? '…' : '');
+  }
+
+  // First heading of the group, else its first words.
+  function groupLabel(b) {
+    var text = String(b.text || '');
+    if (/^h[1-3]$/.test(b.kind)) return oneLine(text.replace(/^#{1,3}[ \t]+/, ''), 40);
+    var m = /^#{1,3}[ \t]+(.+)$/m.exec(text);
+    return m ? oneLine(m[1], 40) : firstWords(text, 6);
+  }
+
+  function isCmpBlock(b) {
+    var c = state.compare[b.id];
+    return !!(c && c.on && (state.picks[b.id] || 0) !== c.base);
+  }
+
+  function markActive() {
+    var id = state.activeId;
+    Array.prototype.forEach.call(document.querySelectorAll('#vpanel .vcard, #doc .block.grp'), function (e) {
+      e.classList.toggle('active', !!id && e.dataset.block === id);
+    });
+  }
+
+  // Show one card for every group block in view. Cheap: it only rebuilds when the list of ids changes (or when forced).
+  function syncPanel(force) {
+    if (!vpanel) return;
+    document.body.classList.toggle('vp-on', panelOn);
+    var ids = [];
+    if (panelOn && interactive()) {
+      var top = els.hdr.offsetHeight, vh = window.innerHeight;
+      Array.prototype.forEach.call(els.doc.querySelectorAll('.block.grp'), function (be) {
+        var r = be.getBoundingClientRect();
+        if (r.height > 0 && Math.min(r.bottom, vh) - Math.max(r.top, top) >= Math.min(24, r.height)) ids.push(be.dataset.block);
+      });
+    }
+    var key = ids.join('|');
+    if (force || key !== vkey) {
+      vkey = key;
+      vpanel.textContent = '';
+      ids.forEach(function (id) {
+        var b = liveBlock(id);
+        if (!hasOptions(b)) return;
+        var card = el('div', 'vcard');
+        card.dataset.block = id;
+        card.appendChild(el('div', 'vlabel', groupLabel(b)));
+        card.appendChild(buildVer(b, { marks: !isCmpBlock(b) }));
+        vpanel.appendChild(card);
+      });
+    }
+    vpanel.hidden = !vpanel.firstChild;
+    markActive();
+    if (hasFb('reposition')) OW.feedback.reposition();
+  }
+
+  // The window or the timeline changed size: switch between panel and inline bars.
+  function applyMode() {
+    if (wantPanel() !== panelOn && state.doc && !state.notFound) render();
+    else syncPanel(false);
   }
 
   // ---------------------------------------------------------------- render
@@ -793,13 +878,14 @@
     }
     els.stale.hidden = false;
     els.stale.textContent = '';
-    els.stale.appendChild(el('h2', null, 'Versions that no longer match the text'));
-    els.stale.appendChild(el('p', 'note-msg', 'The text changed after these were written, so they are not shown in place.'));
-    st.forEach(function (g) {
+    var gone = st.filter(function (g) { return !g.hiddenBy; });
+    var hidden = st.filter(function (g) { return !!g.hiddenBy; });
+
+    function addGroup(g, summary, count) {
       var opts = Array.isArray(g.options) ? g.options : [];
       var d = el('details', 'stale-g');
       d.open = !!state.staleOpen[g.id];
-      d.appendChild(el('summary', null, 'Was: ' + oneLine(g.original || '', 60) + ' (' + opts.length + ' version' + (opts.length === 1 ? '' : 's') + ')'));
+      d.appendChild(el('summary', null, summary + (count ? ' (' + opts.length + ' version' + (opts.length === 1 ? '' : 's') + ')' : '')));
       d.appendChild(el('blockquote', 'stale-orig', String(g.original || '')));
       var ol = el('ol');
       opts.forEach(function (o) {
@@ -810,7 +896,22 @@
       d.appendChild(ol);
       d.addEventListener('toggle', function () { state.staleOpen[g.id] = d.open; });
       els.stale.appendChild(d);
-    });
+    }
+
+    if (gone.length) {
+      els.stale.appendChild(el('h2', null, 'Versions that no longer match the text'));
+      els.stale.appendChild(el('p', 'note-msg', 'The text changed after these were written, so they are not shown in place.'));
+      gone.forEach(function (g) { addGroup(g, 'Was: ' + oneLine(g.original || '', 60), true); });
+    }
+    if (hidden.length) {
+      els.stale.appendChild(el('h2', null, 'Hidden versions'));
+      els.stale.appendChild(el('p', 'note-msg', 'The text still matches, but it overlaps versions that are open. They show again when you use or drop those.'));
+      hidden.forEach(function (g) {
+        var other = liveBlock(g.hiddenBy);
+        var name = other ? groupLabel(other) : String(g.hiddenBy);
+        addGroup(g, 'Hidden: overlaps the open versions of "' + name + '". Use or drop those to see these.', false);
+      });
+    }
   }
 
   function renderHome() {
@@ -821,6 +922,7 @@
     els.bar.hidden = true;
     els.strip.hidden = true;
     els.home.hidden = false;
+    syncPanel(false);
     els.home.textContent = '';
     els.home.appendChild(el('h2', null, 'Your pieces'));
     var list = state.pieces;
@@ -856,6 +958,7 @@
       els.bar.hidden = true;
       els.strip.hidden = true;
       renderBanner();
+      syncPanel(false);
       return;
     }
     if (!state.doc) {
@@ -864,16 +967,20 @@
       els.doc.textContent = '';
       els.doc.appendChild(el('p', 'note-msg', 'Loading…'));
       els.stale.hidden = true;
+      syncPanel(false);
       return;
     }
 
     var y = window.scrollY;
+    panelOn = wantPanel();
     normalizePicks();
     if (hasFb('reconcile')) {
       OW.feedback.reconcile(liveBlocks().filter(function (b) { return !hasOptions(b); })
         .map(function (b) { return { id: b.id, text: String(b.text || '') }; }));
     }
     reconcile();
+    if (state.activeId && !hasOptions(liveBlock(state.activeId))) state.activeId = null;
+    if (!state.activeId) state.activeId = selGroup();
     renderBanner();
 
     var isView = viewing();
@@ -931,6 +1038,7 @@
       }
     }
     updateSelUI();
+    syncPanel(true);
     renderStale();
     renderTimeline();
   }
@@ -1209,7 +1317,7 @@
   }
 
   // ---------------------------------------------------------------- events
-  function inChrome(t) { return !!(t && t.closest && t.closest('#selbar, #strip, #hdr, #timeline, #banner, #stale, #fbwhy')); }
+  function inChrome(t) { return !!(t && t.closest && t.closest('#selbar, #strip, #hdr, #timeline, #vpanel, #banner, #stale, #fbwhy')); }
 
   function setupEvents() {
     els.doc.addEventListener('mouseover', function (e) {
@@ -1233,7 +1341,7 @@
       var t = e.target.nodeType === 1 ? e.target : e.target.parentElement;
       if (!t) return;
       if (inChrome(t)) {
-        if (t.closest('#selbar')) e.preventDefault();
+        if (t.closest('#selbar') || (t.closest('#vpanel') && !t.closest('select'))) e.preventDefault(); // keep the text selection
         return;
       }
       mouseDown = true;
@@ -1250,34 +1358,51 @@
       }, 0);
     });
 
-    els.doc.addEventListener('change', function (e) {
+    function onCompareChange(e) {
       var sel = e.target.closest && e.target.closest('select.cmp-sel');
-      if (!sel) return;
-      var id = sel.closest('.block').dataset.block;
+      var host = sel && sel.closest('[data-block]');
+      if (!host) return;
+      var id = host.dataset.block;
       var c = state.compare[id] || (state.compare[id] = { on: true, base: 0 });
       c.base = Number(sel.value) || 0;
       scheduleSave();
       render();
+    }
+    els.doc.addEventListener('change', onCompareChange);
+    vpanel.addEventListener('change', onCompareChange);
+
+    // Version bar buttons. The bar is under a block (narrow) or in a #vpanel card (wide): both carry data-block.
+    function verClick(e) {
+      var host = e.target.closest('[data-block]');
+      if (!host) return false;
+      var id = host.dataset.block;
+      var tg = e.target.closest('.cmp-toggle');
+      if (tg) {
+        var cc = state.compare[id] || (state.compare[id] = { on: false, base: 0 });
+        cc.on = !cc.on;
+        state.activeId = id;
+        scheduleSave();
+        render();
+        return true;
+      }
+      var uv = e.target.closest('.ver-use, .ver-drop');
+      if (uv) { state.activeId = id; useVersion(id); return true; }
+      var vb = e.target.closest('.vbtn');
+      if (vb) { cycle(id, vb.classList.contains('next') ? 1 : -1); return true; }
+      return false;
+    }
+
+    vpanel.addEventListener('click', function (e) {
+      var card = e.target.closest('.vcard');
+      if (!card) return;
+      if (state.activeId !== card.dataset.block) { state.activeId = card.dataset.block; markActive(); }
+      verClick(e);
     });
 
     els.doc.addEventListener('click', function (e) {
-      var tg = e.target.closest('.cmp-toggle');
-      if (tg) {
-        var cid = tg.closest('.block').dataset.block;
-        var cc = state.compare[cid] || (state.compare[cid] = { on: false, base: 0 });
-        cc.on = !cc.on;
-        scheduleSave();
-        render();
-        return;
-      }
-      var uv = e.target.closest('.ver-use, .ver-drop');
-      if (uv) { useVersion(uv.closest('.block').dataset.block); return; }
-      var vb = e.target.closest('.vbtn');
-      if (vb) {
-        var be = vb.closest('.block');
-        cycle(be.dataset.block, vb.classList.contains('next') ? 1 : -1);
-        return;
-      }
+      if (verClick(e)) return;
+      var gb = e.target.closest('.block.grp');
+      if (gb && state.activeId !== gb.dataset.block) { state.activeId = gb.dataset.block; markActive(); }
       if (!interactive()) return;
       var gs = window.getSelection();
       if (gs && !gs.isCollapsed) return;
@@ -1337,6 +1462,7 @@
       document.body.classList.toggle('tl-open', tlOn);
       renderHeader();
       renderTimeline();
+      applyMode();
       placeBar();
     });
 
@@ -1366,7 +1492,7 @@
     var raf = 0;
     function reflow() {
       if (raf) return;
-      raf = requestAnimationFrame(function () { raf = 0; placeBar(); });
+      raf = requestAnimationFrame(function () { raf = 0; applyMode(); placeBar(); });
     }
     window.addEventListener('scroll', reflow, { passive: true });
     window.addEventListener('resize', reflow);
@@ -1409,6 +1535,11 @@
     } else {
       panel.textContent = 'Timeline is not available.';
     }
+    vpanel = el('aside');
+    vpanel.id = 'vpanel';
+    vpanel.setAttribute('aria-label', 'Versions in view');
+    vpanel.hidden = true;
+    document.body.appendChild(vpanel);
     if (hasFb('init')) {
       OW.feedback.init({
         bar: els.bar, doc: els.doc,
