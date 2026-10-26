@@ -2,6 +2,10 @@
 
 Newest first. Short, dated, what changed and why.
 
+## 2026-10-26 Section versions
+
+- Several non-overlapping version groups can be open at once, with a sticky side panel for their controls. Overlapping groups show as hidden, with the group that hides them, not as stale (D8, D9).
+
 ## 2026-10-24 Feedback notes
 
 - Fixed: a note was lost when you pressed 👍 several times, changed 👍 to 👎, or cleared a thumb. A vote now edits the mark in place and keeps its note.

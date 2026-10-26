@@ -42,8 +42,9 @@ Read the files. Do not call `GET /api/doc` to read a piece (large).
 - **Picking a version** ("take 3", "keep mine"): do not edit by hand. Call
   `curl -s -X POST http://127.0.0.1:4646/api/accept/<id> -H 'content-type: application/json' -d '{"group":"g1","pick":2}'`
   `pick` = badge number minus one; `0` drops the drafts and keeps the text. It updates the file, closes the group, logs it, and for a title renames the file (the reply has the new id). Never rename files yourself.
-- **Whole structure:** one group whose original is the whole body after the title. **Titles:** a group whose original is the `# ` line; options are plain titles.
-- **Stale groups:** if the user edited a paragraph by hand, its group no longer matches and the page lists it under the text. Rebuild it from the new text if they still want versions.
+- **Section versions:** several groups may be open if they never share a paragraph. One group per section: `original` = the exact paragraphs of that section, its `## ` heading line included, blank line between paragraphs. For example 3 options for the opening, 3 for a middle section, 3 for the conclusion. The user switches each one on its own. Before adding a group, check its paragraphs are not in another open group's original.
+- **Whole structure:** a group whose original is the whole body after the title overlaps every other group. Use it only when no other group is open. Otherwise it is hidden until the others are used or dropped. Close the others first (accept pick 0) only if the user asks. **Titles:** a group whose original is the `# ` line; options are plain titles.
+- **Stale groups:** if the user edited a paragraph by hand, its group no longer matches and the page lists it under the text. Rebuild it from the new text if they still want versions. A group listed as hidden is not stale: it overlaps an open group. Do not rebuild it.
 - Keep their words. Light touch. Change only what they asked.
 
 ## Undo and finish

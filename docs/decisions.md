@@ -71,3 +71,19 @@ Newest last. Each entry: what was decided, why, and what was rejected. A later d
 **Why.** Sergei lost notes on repeated 👍 and on 👍 to 👎, and could not see saved notes. Note and vote are two fields on one mark, so neither may change the other.
 
 **Rejected.** Creating a neutral mark on click (an empty neutral is lost by `clean()` and the next save). Storing notes in a separate list (two stores to keep in step). 💬 as a vote button (it became a like). Saving only on Enter. Rendering the page on every keystroke. Migrating old files (none can contain score 0).
+
+## D8 Overlapping groups: the earlier one wins, the other is hidden (2026-10-26)
+
+**Decision.** Several version groups can be open at once if they share no paragraph. When two overlap, matching goes in `groups` order and the earlier group wins. The later one is hidden: `doc.stale` lists it with `hiddenBy` (the winner's id), and the page shows it under the text, apart from truly stale groups, saying which open group hides it. It comes back when the winner is used or dropped. Accept on it gives 404, like a stale group. Agents propose per section (one group per section, heading included) and use a whole-article group only when nothing else is open.
+
+**Why.** Options for the opening, a middle section and the conclusion should switch independently. A whole-article group overlaps all of them, so one rule has to decide. Array order is already how matching works, so nothing new to learn. "Hidden" tells the user the text did not change, so they do not rebuild a group for nothing.
+
+**Rejected.** Nesting groups (what a pick means inside a pick is unclear, and accept would have to rewrite the inner originals). Splitting a group automatically (the server would invent text boundaries the agent did not choose). Treating overlaps silently as stale (wrong reason, and the user would think their edit broke it).
+
+## D9 Sticky side panel for version controls (2026-10-26)
+
+**Decision.** The version controls (prev/next, count, note, whole-version thumbs and note, Compare, Use/Drop) live in a sticky panel on the right (`#vpanel`). It shows them for every group block in view and highlights the selected group. It sits left of the timeline when the timeline is open. At narrow widths there is no panel: the bar stays under each block and sticks to the bottom of the screen while its block is in view.
+
+**Why.** With several groups on a long page, a bar under each block scrolls out of reach. One panel keeps the controls next to the text being read, and the narrow fallback needs no extra layout.
+
+**Rejected.** A floating toolbar per block only (jumps around and covers text). Duplicating the bar at the top and the bottom of each block (clutter, and two places to keep in step).

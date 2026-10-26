@@ -42,7 +42,8 @@ A JSON array, written by the server only (accept). It keeps versions.json small 
 - Option `text` is the replacement for the whole group, same number of paragraphs or not.
 - Ids are never reused. The agent only appends: new groups, new options, new log entries.
 - Title group: `original` is the `# ` line, options are plain titles.
-- A group whose `original` no longer matches is stale. It is listed in `doc.stale`, not shown in the text.
+- Several groups may be open at once if their paragraphs do not overlap. A group whose `original` no longer matches is stale. It is listed in `doc.stale`, not shown in the text.
+- A group whose `original` still matches but shares a paragraph with an earlier open group is hidden, not stale. The earlier group in `groups` wins. The hidden group is listed in `doc.stale` with `hiddenBy`. It shows again when the other group is used or dropped.
 - closed.json: each accepted group is appended with `result` `used` (`pick` n is `options[n-1]`) or `dropped` (`pick` 0). The page never reads it. The agent leaves it alone. The file lives in the sidecar folder, so a title rename moves it. An old versions.json that still has a `closed` array: accept moves that array into closed.json (before the new entry) and removes it from versions.json. Every server write keeps other unknown keys in versions.json.
 - Bad entries are dropped (`cleanVersions`). A file that does not parse keeps the last good one.
 
@@ -86,13 +87,13 @@ Every request needs a `Host` of `127.0.0.1:<port>` or `localhost:<port>`, else 4
 { "doc": { "title": "",
            "blocks": [ { "id": "g1|p3", "kind": "h1|h2|h3|p|code", "text": "",
                          "options": [ { "text": "", "note": "" } ], "title": true } ],
-           "stale": [ { "id": "g2", "original": "", "options": [ { "text": "", "note": "" } ] } ],
+           "stale": [ { "id": "g2", "original": "", "options": [ { "text": "", "note": "" } ], "hiddenBy": "g1" } ],
            "log": [ { "at": "", "note": "" } ] },
   "ui": { "selection": null, "picks": {} },
   "etag": "", "history": [ { "file": "", "at": "", "note": "" } ],
   "dir": "/abs/path/to/folder", "canReveal": true }
 ```
-- `options` and `title` appear only when set. A group block has `id` = group id, kind of its paragraph (`p` if it covers several), `text` = member texts joined by a blank line (for a group of several paragraphs the members keep their `#` marks, so the page can show each paragraph by its own kind, in the current text and in every option). `title: true` when the group is exactly the title paragraph. Other paragraphs have id `p<index>` (whole-file paragraph index; it shifts when text is added).
+- `options` and `title` appear only when set. `stale[].hiddenBy` is the id of the open group that claims the paragraphs; it is absent when the text really changed (truly stale). Accept on a hidden group gives 404, like a stale one. A group block has `id` = group id, kind of its paragraph (`p` if it covers several), `text` = member texts joined by a blank line (for a group of several paragraphs the members keep their `#` marks, so the page can show each paragraph by its own kind, in the current text and in every option). `title: true` when the group is exactly the title paragraph. Other paragraphs have id `p<index>` (whole-file paragraph index; it shifts when text is added).
 - `etag` = quoted sha1 base64url of `mdText + "\0" + versionsText` (versions text is empty if no file). The ETag header is the same.
 - `history` is oldest first.
 - `canReveal` is true only on macOS (`process.platform === 'darwin'`). It tells the page whether POST /api/reveal works.
@@ -123,7 +124,7 @@ An id that is empty, starts with `.`, or has `/`, `\` or a control character giv
 - A line starting `#`, `##` or `###` plus a space or tab is its own paragraph (h1 to h3). `####` is plain text. No setext headings.
 - A fence line (` ``` ` or `~~~`, up to 3 spaces indent) opens a `code` paragraph. It closes on a line of the same character, at least as long, then only spaces. Blank lines inside stay. An unclosed fence runs to the end of the file.
 - Everything else (lists, quotes, tables, HTML) is plain text. A tight list is one paragraph.
-- A group's `original` is parsed the same way. Its paragraphs must be a run of consecutive paragraphs in the .md. Matching: exact on `raw` (or on `text`, so a heading original may omit `#`), then again with whitespace collapsed. Document order, first free run wins, a paragraph is claimed by one group only.
+- A group's `original` is parsed the same way. Its paragraphs must be a run of consecutive paragraphs in the .md. Matching: exact on `raw` (or on `text`, so a heading original may omit `#`), then again with whitespace collapsed. Groups are matched in `groups` array order. The first free run wins and a paragraph is claimed by one group only. A group that matches only runs already claimed is hidden (`hiddenBy` is the claiming group), not stale. A whole-body group overlaps every other group.
 
 ## Snapshot rules
 
