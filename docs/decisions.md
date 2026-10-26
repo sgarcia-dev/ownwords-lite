@@ -82,7 +82,7 @@ Newest last. Each entry: what was decided, why, and what was rejected. A later d
 
 ## D9 Sticky side panel for version controls (2026-10-26)
 
-**Decision.** The version controls (prev/next, count, note, whole-version thumbs and note, Compare, Use/Drop) live in a sticky panel on the right (`#vpanel`). It shows them for every group block in view and highlights the selected group. It sits left of the timeline when the timeline is open. At narrow widths there is no panel: the bar stays under each block and sticks to the bottom of the screen while its block is in view.
+**Decision.** The version controls (prev/next, count, note, whole-version thumbs and note, Compare, Use/Drop) live in a sticky panel on the right (`#vpanel`). It shows them for every group block in view and highlights the selected group. The panel shows at a window width of 1180px or more, or 1500px or more with the timeline open (then it sits left of the timeline). Below that there is no panel: the bar stays under each block, sticky at the bottom of the screen.
 
 **Why.** With several groups on a long page, a bar under each block scrolls out of reach. One panel keeps the controls next to the text being read, and the narrow fallback needs no extra layout.
 
