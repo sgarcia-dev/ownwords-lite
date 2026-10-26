@@ -227,3 +227,44 @@ test('buildDoc: a group spanning a heading keeps the # marks, so each paragraph 
   const one = buildDoc(t, { groups: [{ id: 'g2', original: '## Part one', options: [] }] }, 's').blocks[2];
   assert.deepEqual([one.kind, one.text], ['h2', 'Part one']);
 });
+
+test('buildDoc: three section groups (heading plus paragraphs) all show as blocks', () => {
+  const t = 'Intro.\n\n## One\n\nOne a.\n\nOne b.\n\n## Two\n\nTwo a.\n\n## Three\n\nThree a.\n\nTail.\n';
+  const groups = [
+    { id: 's1', original: '## One\n\nOne a.\n\nOne b.', options: [] },
+    { id: 's2', original: '## Two\n\nTwo a.', options: [] },
+    { id: 's3', original: '## Three\n\nThree a.', options: [] },
+  ];
+  const d = buildDoc(t, { groups }, 's');
+  assert.deepEqual(d.blocks.map((b) => b.id), ['p0', 's1', 's2', 's3', 'p8']);
+  assert.equal(d.blocks[1].text, '## One\n\nOne a.\n\nOne b.');
+  assert.equal(d.blocks[2].text, '## Two\n\nTwo a.');
+  assert.equal(d.blocks[3].text, '## Three\n\nThree a.');
+  assert.equal(d.blocks[0].text, 'Intro.');
+  assert.equal(d.blocks[4].text, 'Tail.');
+  assert.deepEqual(d.stale, []);
+});
+
+test('buildDoc: a group hidden by an open group is stale with hiddenBy; a changed group is not', () => {
+  const t = 'Alpha.\n\nBeta.\n';
+  const versions = {
+    groups: [
+      { id: 'whole', original: 'Alpha.\n\nBeta.', options: [] },
+      { id: 'part', original: 'Beta.', options: [] },
+      { id: 'spaced', original: 'Alpha.', options: [] },
+      { id: 'changed', original: 'Gamma.', options: [] },
+    ],
+  };
+  const d = buildDoc(t, versions, 's');
+  assert.deepEqual(d.blocks.map((b) => b.id), ['whole']);
+  assert.deepEqual(d.stale.map((g) => g.id), ['part', 'spaced', 'changed']);
+  assert.equal(d.stale[0].hiddenBy, 'whole');
+  assert.equal(d.stale[1].hiddenBy, 'whole');
+  assert.equal('hiddenBy' in d.stale[2], false);
+  // collapsed-whitespace match is also detected as hidden
+  const e = buildDoc('A  b\n\nC\n', { groups: [
+    { id: 'x', original: 'A  b\n\nC', options: [] },
+    { id: 'y', original: 'A b', options: [] },
+  ] }, 's');
+  assert.equal(e.stale[0].hiddenBy, 'x');
+});
