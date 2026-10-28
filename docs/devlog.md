@@ -2,6 +2,10 @@
 
 Newest first. Short, dated, what changed and why.
 
+## 2026-10-28 Hosted plan (proposal)
+
+- Wrote [hosted-plan.md](hosted-plan.md): how a hosted Ownwords could be driven from the Claude and ChatGPT Mac apps. Remote MCP plus an MCP App view for Claude, WebMCP site tools for the ChatGPT Mac app, one Cloudflare backend. Nothing built; D1 and D6 stand until the owner picks the open calls.
+
 ## 2026-10-26 Section versions
 
 - Several non-overlapping version groups can be open at once, with a sticky side panel for their controls. Overlapping groups show as hidden, with the group that hides them, not as stale (D8, D9).
