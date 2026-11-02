@@ -2,6 +2,8 @@
 
 Status: **plan, 2 Nov 2026. Nothing is built.** The owner chose the direction in [D10](decisions.md): a public tech demo of both interfaces on his server. It replaces the 28 Oct hosted plan (Cloudflare Workers). Facts come from two research rounds on 2 Nov: 14 questions, each asked to both GPT-6.1 Terra and Haiku, then 8 narrow checks. Hours are guesses unless marked measured.
 
+**Newest direction from the owner, 2 Nov:** three separate forks instead of one backend: Ownwords Lite as it is, an MCP App version, and a WebMCP version. Each is tested with text stored on the server and with nothing stored on the server, with the most basic sign-in possible. The facts below still hold. Where they say one backend or real sign-in, the fork idea is newer.
+
 ## The answer
 
 - **Build a tech demo of both interfaces, to see which one works best.** MCP Apps show Ownwords inside the chat. WebMCP keeps the website beside the chat. They feel very different, and only using them will tell.
