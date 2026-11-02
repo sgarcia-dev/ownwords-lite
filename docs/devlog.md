@@ -4,7 +4,8 @@ Newest first. Short, dated, what changed and why.
 
 ## 2026-11-02 Deployment plan (proposal)
 
-- Replaced the hosted plan with [deployment-plan.md](deployment-plan.md), after a fresh research round aimed at $100 plans, a friend's test drive and storage choices. New order: local folder first, then a local connector, then a hosted folder per user on a separate small server. WebMCP and Cloudflare Workers are dropped for now. Nothing built; D1 and D6 stand.
+- Replaced the hosted plan with [deployment-plan.md](deployment-plan.md), after a fresh research round aimed at $100 plans, a friend's test drive and storage choices. New order: local folder first, then a local connector, then a hosted folder per user on a separate small server. Nothing built.
+- The owner corrected the plan the same day: a public tech demo of both WebMCP and MCP Apps on his server, because the interfaces need comparing in real use (D10).
 
 ## 2026-10-28 Hosted plan (proposal)
 

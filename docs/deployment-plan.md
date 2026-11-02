@@ -1,14 +1,26 @@
 # Deployment and storage plan
 
-Status: **proposal, 2 Nov 2026. Nothing is built.** It replaces the 28 Oct hosted plan (Cloudflare Workers plus WebMCP). No decision in [decisions.md](decisions.md) changes until the owner picks the open calls at the end. Facts come from two research rounds on 2 Nov: 14 questions, each asked to both GPT-6.1 Terra and Haiku, then 8 narrow checks. Hours are guesses unless marked measured.
+Status: **plan, 2 Nov 2026. Nothing is built.** The owner chose the direction in [D10](decisions.md): a public tech demo of both interfaces on his server. It replaces the 28 Oct hosted plan (Cloudflare Workers). Facts come from two research rounds on 2 Nov: 14 questions, each asked to both GPT-6.1 Terra and Haiku, then 8 narrow checks. Hours are guesses unless marked measured.
 
 ## The answer
 
-- **A local, private version is doable, and it is the best first test.** Writing stays in a folder on the user's Mac. The Claude desktop Code tab and ChatGPT desktop's Codex or Work can already edit a folder. That is how Ownwords Lite works today, so a friend may need no new code.
-- **It cannot be fully private or fully offline with Claude or ChatGPT.** The page and files work offline. But whatever the AI reads goes to Anthropic or OpenAI, and the AI needs internet. Only a local model, run from an agent that can edit files, keeps the text on the computer.
-- **Build one core, then package it three ways.** The core is a small set of MCP tools over one storage layer. Package 1: today's local folder. Package 2: a local connector for the chat apps. Package 3: a hosted server for the websites.
-- **When hosted is needed, keep today's file format.** One folder per user on a separate small server. No database and no rewrite.
-- **Dropped for now:** WebMCP (reaches one app, which has a better route), Cloudflare Workers (forces a storage rewrite), sync engines (overkill), and the chat session as the main store (the vendors say not to).
+- **Build a tech demo of both interfaces, to see which one works best.** MCP Apps show Ownwords inside the chat. WebMCP keeps the website beside the chat. They feel very different, and only using them will tell.
+- **Host it publicly on the owner's server.** Only this app goes public. Everything else on the box stays as it is.
+- **One backend, one tool set.** Each interface is a thin layer over the same tools and the same folder per user, in today's file format.
+- **WebMCP has one hard limit.** Only ChatGPT's desktop app can call it natively, inside its own built-in browser. Claude has no documented support. So a third, cheap layout is included: the same side-by-side page, driven by ordinary MCP tools, which works in Claude too.
+- **A local, private version stays possible.** Writing stays on the user's Mac, and desktop agents can already edit that folder. The AI still sends what it reads to Anthropic or OpenAI. Only a local model keeps text on the computer. This is not the main track now, but it is the cheapest fallback for a friend.
+
+## The interfaces to compare
+
+| Interface | What the user sees | In Claude | In ChatGPT |
+|---|---|---|---|
+| **A. In chat (MCP App)** | Ownwords inside the conversation, inline or fullscreen | Desktop chat and claude.ai | chatgpt.com. On Pro, widgets and writes are unconfirmed, and OpenAI documents read and fetch only. Mac chat is unconfirmed |
+| **B. Side by side, WebMCP** | The site beside the chat. The agent calls tools the page registers | No documented support. Only a community bridge (MCP-B) with a Chrome extension | Desktop app's built-in browser only, with a Sol model. Not the user's own Chrome. Pro eligibility is undocumented |
+| **C. Side by side, MCP tools** | The same page in Chrome beside the chat. The agent calls hosted tools, and the page updates by itself | Desktop chat and claude.ai | Desktop Codex |
+
+- B and C look alike but work differently. In B the tools live in the page, so the page must stay open. In C they live on the server, so the agent works with the page closed.
+- C costs almost nothing extra, since A already needs the hosted tools.
+- A guess to test: a view could save marks and selection straight to our API, which might work even where Pro blocks MCP write tools. The agent's own edits would still be blocked.
 
 ## Who reaches what on a $100 or higher plan
 
@@ -24,7 +36,7 @@ Status: **proposal, 2 Nov 2026. Nothing is built.** It replaces the 28 Oct hoste
 
 - A hosted connector must be on the public internet, over IPv4. Claude calls it from Anthropic's cloud and rejects Tailscale's address range, even from the desktop app.
 - Claude Cowork is not a local route on Max. New tasks have run in the cloud since 6 Oct 2026.
-- WebMCP works only in ChatGPT desktop's built-in browser, with a Sol model. Pro eligibility and `127.0.0.1` are undocumented. Claude has no documented support. Codex's MCP screen reaches the same app with less risk.
+- WebMCP's limits are in the table above. `127.0.0.1` is undocumented for it, and plain Chrome needs an origin trial token.
 
 **Best per app:** Claude users get the desktop chat with a connector, because it has the in-chat view and also works on the web once hosted. ChatGPT users get desktop Codex. The chatgpt.com website is the weak spot unless the test below passes.
 
@@ -32,8 +44,8 @@ Status: **proposal, 2 Nov 2026. Nothing is built.** It replaces the 28 Oct hoste
 
 | Method | Where the text lives | Can the AI reach it? | Verdict |
 |---|---|---|---|
-| Folder plus local server (today) | User's Mac, real files | Desktop agents and local connectors. Not websites | **First test** |
-| Folder per user on a server | Server, same files | Every app, through hosted MCP | **Hosted default** |
+| Folder plus local server (today) | User's Mac, real files | Desktop agents and local connectors. Not websites | **Local fallback** |
+| Folder per user on a server | Server, same files | Every app, through hosted MCP | **Demo store** |
 | SQLite on the server | Server | Same | Later, if search or transactions matter. Loses plain files |
 | Postgres | Server | Same | Overkill for 2 to 20 users |
 | Hosted page with a real local folder (Chrome File System Access) | User's Mac, real files | Not on its own. Needs a relay | Possible later. Chrome only. 45 to 90 hours |
@@ -48,17 +60,26 @@ Also: Git and object storage suit history and backups, not live writing. Yjs, Au
 
 ## Where to host it
 
-| Option | Cost a month | Verdict |
-|---|---|---|
-| No hosting: each user runs it on their Mac | 0 | **First test** |
-| Second small Hetzner server: CAX11, ARM, 2 vCPU, 4 GB, with Caddy on port 443 | EUR 5.99 plus 0.50 for IPv4, net (measured 2 Nov) | **Pick when hosted.** A real boundary from private data |
-| Same server as private data, behind a named Cloudflare Tunnel, in Docker | 0 | Fastest, but a public app and a friend's writing sit beside private files and agents. Owner's risk call |
-| Tailscale Funnel | 0 | Works technically. Bandwidth limit is unspecified. Not for a box holding private data |
-| Cloudflare Workers | Free tier | Node server and file storage must be rewritten |
-| Fly or Railway | About $5 | Fine, but no gain over a server already managed the same way |
+**Chosen: publicly on the owner's server, for this app only.** The home page, admin tools and agents stay private as they are today.
 
-- Stock changes: on 2 Nov the x86 CX23 and CX33 were sold out in all three EU locations, and CAX11 was in stock in Falkenstein only.
-- **Caddy over a tunnel on the second server.** Caddy flushes streams at once with no default stream timeout. Cloudflare buffers unless the response is `text/event-stream`, has a 125 s read timeout, and its Bot Fight Mode cannot be skipped by rules. A box holding only this app can safely have port 443 open.
+Changes on the server:
+- Allow TCP 443 in the Hetzner firewall and in `ufw`. Port 80 too, unless certificates use the DNS challenge.
+- Add Caddy for HTTPS and a subdomain with a DNS-only record. Bind it to the public IP, because Tailscale Serve already uses 443 on the tailnet address (a guess to confirm).
+- Run the app in Docker with its own folder, a memory limit and no access to the workspace, tokens or browser profile. The server's own notes already set this rule for public apps.
+- Teach the server's setup kit and checks the new rule, or a rebuild will close the port again, and a check that expects no public ports will fail (a guess to confirm).
+
+Measured on 2 Nov: 5.4 GB memory and 44 GB disk free, so capacity is fine. Connectors are IPv4-only, and the server has a public IPv4.
+
+**Alternatives if this changes**
+
+| Option | Cost a month | Note |
+|---|---|---|
+| Named Cloudflare Tunnel on the same server | 0 | No open port and the IP stays hidden. Cloudflare buffers unless `text/event-stream`, has a 125 s read timeout, and Bot Fight Mode cannot be skipped by rules |
+| Second small server (CAX11, ARM, 2 vCPU, 4 GB) | EUR 6.49 net | A real boundary from private data. In stock in Falkenstein on 2 Nov; x86 CX23 and CX33 were sold out in the EU |
+| Cloudflare Workers | Free tier | Node server and file storage must be rewritten |
+| Fly or Railway | About $5 | No gain over a server already managed |
+
+The Mac-only option (no hosting) remains the local fallback.
 
 ## Sign-in for hosted
 
@@ -86,29 +107,32 @@ Each phase ends with a gate. Stop at any gate if it is enough.
 
 | Phase | What | Hours | Gate |
 |---|---|---|---|
-| **P0 Tests** | The hands-on tests below | 1-2 | Reach table has no unknowns that matter |
-| **P1 Friend, local** | Friend installs Lite and polishes a real piece through the app that suits their plan. A short guide per app | 1-2 | Friend says what they would change |
-| **P2 MCP core and local connector** | Tools, a `.mcpb` for Claude desktop, a Codex setup line | 18-36 | Polish from Claude chat and Codex with no Code tab |
-| **P3 In-chat view** | One `ui://` view: versions, arrows, marks, select. Reads and writes through tools | 15-25 | Polish without leaving the Claude chat |
-| **P4 Hosted** | Second server, per-user processes, Caddy, sign-in, revision checks, backups | 27-65 | Same flow from claude.ai, Claude desktop and ChatGPT Codex |
+| **P0 Look spike** | Open the app publicly. One throwaway page with one WebMCP tool and one `ui://` view with one tool, on real text. No real sign-in yet (secret URL) | 3-6 | The owner sees A, B and C in real apps, on real accounts, and the Pro unknowns are answered |
+| **P1 Hosted core** | Per-user processes and folders, sign-in, deploy | 19-49 | The page works publicly for the owner and the friend |
+| **P2 Tools** | The full MCP tool set, used by every interface. Interface C works at this point | 16-32 | A full polish from Claude and from ChatGPT Codex |
+| **P3 WebMCP** | The same tools registered on the page | 4-8 | A full polish from ChatGPT's built-in browser |
+| **P4 MCP App** | The real in-chat view: versions, arrows, marks, select | 15-25 | A full polish without leaving the chat |
+| **P5 Compare** | The owner and the friend use each interface on real pieces and say which stays | 2-4 | One interface is picked, or both stay |
 
-The order follows risk and value. P1 may answer whether anyone needs more. P2's tools are reused unchanged by P4.
+About 60 to 125 hours in all (guess). Revision checks wait until after the demo, so one writer at a time is the rule until then. If P0 shows that one interface cannot work on the plans that matter, drop its phase.
 
 ## Tests that settle the unknowns
 
-Documents cannot answer these. They need real accounts.
+Documents cannot answer these. P0 covers all of them, on real accounts.
 
 | Test | Settles |
 |---|---|
-| In ChatGPT desktop on Pro, attach a temp folder to a local project. Ask Codex, then Work, to edit a file. Open the page at `127.0.0.1` in the built-in browser | Is the local route real on Pro? |
-| In Claude desktop, install the Excalidraw `.mcpb`. Ask for a drawing in chat, then in the Code tab | Do `.mcpb` views render, and where? |
-| Run a tiny public MCP server with one write tool and one view. Add it to claude.ai, Claude desktop, ChatGPT Codex, and chatgpt.com developer mode on Pro | Does Pro write work on the web? Do views render from a private connector? Is JSON-only accepted? |
-| Run that server with WorkOS | Does sign-in work in both apps? |
+| In ChatGPT desktop on Pro, open the public page in the built-in browser with a Sol model, and ask it to call the WebMCP tool | Does B work on Pro? Is an origin trial token needed? |
+| Add the public server to chatgpt.com developer mode on Pro, with one write tool and one view | Does A render on Pro? Does the write run? |
+| Add it to Claude desktop chat, claude.ai and ChatGPT Codex | Does A render from a private connector? Does C work? Is JSON-only accepted? |
+| Run the same server with WorkOS | Does sign-in work in both apps? |
+| Attach a temp folder in ChatGPT desktop, and install the Excalidraw `.mcpb` in Claude desktop | Is the local fallback real on Pro? Do local views render? |
 
 ## Risks
 
 - **Vendors move fast.** Cowork moved to the cloud on 6 Oct, and Pro tiers changed this autumn. The local folder route depends on the least vendor behaviour.
-- **Friend's writing on the owner's server.** The owner can read it, and so can any agent on that box. The second server limits this. Say so to the friend.
+- **Friend's writing on the owner's server.** The owner can read it, and so can any agent on that box. Say so to the friend.
+- **WebMCP is a draft.** The API was renamed this year and may change again. Keep its layer thin.
 - **Prompt injection.** Notes and marks reach the agent. Tool descriptions must treat them as data.
 - **A public server needs upkeep:** updates, backups and a rule for deleting a user's data.
 - **Mac-only launcher.** The local route assumes a Mac. Other systems run `node server.js`.
@@ -117,11 +141,12 @@ Documents cannot answer these. They need real accounts.
 
 Each: time to decide, effort if picked (0 to 100), importance (0 to 100), and my pick.
 
-1. **Local first, or hosted first.** 2 minutes. Effort: local 5, hosted 50. Importance 90. **Pick: local first.** It tests the writing flow with almost no cost.
-2. **Hosted location.** 2 minutes. Effort: second server 15, same server 10. Importance 70. **Pick: second server.**
-3. **Sign-in.** 2 minutes. Effort 15. Importance 60. **Pick: WorkOS**, after the secret-URL spike.
-4. **Code location.** 2 minutes. Effort 5. Importance 40. **Pick: this repo for the local connector, a separate folder for hosted.** This replaces the 28 Oct pick of a new repo, because the code now stays shared.
-5. **Later storage options.** Hosted page with local folder, relay, Drive. 5 minutes. Effort 60 or more each. Importance 30. **Pick: not now.** Revisit after P1.
+1. **The subdomain name.** 1 minute. Effort 2. Importance 30. No pick: the owner names things.
+2. **Go for P0.** 2 minutes. Effort 15. Importance 90. It opens port 443 on the server. **Pick: yes.** It shows the three looks before the larger build.
+3. **Which ChatGPT account tests B and A.** 1 minute. Effort 0. Importance 80. Pro results may differ from Business. **Pick: the owner's own account first.**
+4. **Sign-in after the spike.** 2 minutes. Effort 15. Importance 60. **Pick: WorkOS.**
+5. **Code location.** 2 minutes. Effort 5. Importance 40. **Pick: this repo for shared code and tools, a separate folder for hosted files,** so Lite keeps its no-dependency promise (D1).
+6. **Later storage options.** Hosted page with a local folder, relay, Drive. 5 minutes. Effort 60 or more each. Importance 30. **Pick: not now.** Revisit after P5.
 
 ## Sources
 

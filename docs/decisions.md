@@ -87,3 +87,11 @@ Newest last. Each entry: what was decided, why, and what was rejected. A later d
 **Why.** With several groups on a long page, a bar under each block scrolls out of reach. One panel keeps the controls next to the text being read, and the narrow fallback needs no extra layout.
 
 **Rejected.** A floating toolbar per block only (jumps around and covers text). Duplicating the bar at the top and the bottom of each block (clutter, and two places to keep in step).
+
+## D10 Hosted tech demo of both interfaces (2026-11-02)
+
+**Decision.** Build a public hosted demo with both WebMCP and MCP Apps, on one backend, on the owner's server. Only this app is public. The local Lite stays as it is. Details: [deployment-plan.md](deployment-plan.md). This changes D6 (WebMCP not now) and D1's "no MCP server" for the hosted demo only.
+
+**Why.** The interfaces feel very different: the site beside the chat, or Ownwords inside the chat. Nobody can tell which works best without using them.
+
+**Rejected.** Picking one interface from documents alone, which is what the first version of the plan did by dropping WebMCP. A separate server, for now (owner's call).
