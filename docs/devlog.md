@@ -2,9 +2,13 @@
 
 Newest first. Short, dated, what changed and why.
 
+## 2026-11-02 Deployment plan (proposal)
+
+- Replaced the hosted plan with [deployment-plan.md](deployment-plan.md), after a fresh research round aimed at $100 plans, a friend's test drive and storage choices. New order: local folder first, then a local connector, then a hosted folder per user on a separate small server. WebMCP and Cloudflare Workers are dropped for now. Nothing built; D1 and D6 stand.
+
 ## 2026-10-28 Hosted plan (proposal)
 
-- Wrote [hosted-plan.md](hosted-plan.md): how a hosted Ownwords could be driven from the Claude and ChatGPT Mac apps. Remote MCP plus an MCP App view for Claude, WebMCP site tools for the ChatGPT Mac app, one Cloudflare backend. Nothing built; D1 and D6 stand until the owner picks the open calls.
+- Wrote the first hosted plan, since replaced by [deployment-plan.md](deployment-plan.md): how a hosted Ownwords could be driven from the Claude and ChatGPT Mac apps. Remote MCP plus an MCP App view for Claude, WebMCP site tools for the ChatGPT Mac app, one Cloudflare backend. Nothing built; D1 and D6 stand until the owner picks the open calls.
 
 ## 2026-10-26 Section versions
 
